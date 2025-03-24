@@ -1,6 +1,299 @@
 Changelog
 =========
 
+## [v26.11.1] - 2025-03-18
+### :bug: Bug Fixes
+- [`d7b3b3e`](https://github.com/tobymao/sqlglot/commit/d7b3b3e89720d1783d092a2c60a9c2209d9984a2) - **optimizer**: handle TableFromRows properly in annotate_types *(PR [#4889](https://github.com/tobymao/sqlglot/pull/4889) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4004](https://github.com/TobikoData/sqlmesh/issues/4004) opened by [@hmeng-taproot](https://github.com/hmeng-taproot)*
+
+
+## [v26.11.0] - 2025-03-17
+### :boom: BREAKING CHANGES
+- due to [`ac3d311`](https://github.com/tobymao/sqlglot/commit/ac3d311c4184ca2ced603a100588e3e7435ce352) - do not expand having expressions if they conflict with a projection *(PR [#4881](https://github.com/tobymao/sqlglot/pull/4881) by [@tobymao](https://github.com/tobymao))*:
+
+  do not expand having expressions if they conflict with a projection (#4881)
+
+- due to [`081994e`](https://github.com/tobymao/sqlglot/commit/081994ea85c7aa1cbbbc40a24857dba4fd6c1c61) - Fix parsing multi-part format name *(PR [#4885](https://github.com/tobymao/sqlglot/pull/4885) by [@VaggelisD](https://github.com/VaggelisD))*:
+
+  Fix parsing multi-part format name (#4885)
+
+- due to [`491c407`](https://github.com/tobymao/sqlglot/commit/491c407d48a24b6d4093e9c9bfdc3d8c27c29e4c) - parse parameter key as Var instead of Identifier *(PR [#4888](https://github.com/tobymao/sqlglot/pull/4888) by [@georgesittas](https://github.com/georgesittas))*:
+
+  parse parameter key as Var instead of Identifier (#4888)
+
+
+### :bug: Bug Fixes
+- [`ac3d311`](https://github.com/tobymao/sqlglot/commit/ac3d311c4184ca2ced603a100588e3e7435ce352) - do not expand having expressions if they conflict with a projection *(PR [#4881](https://github.com/tobymao/sqlglot/pull/4881) by [@tobymao](https://github.com/tobymao))*
+- [`44b7b09`](https://github.com/tobymao/sqlglot/commit/44b7b09deca881e274ad03068eee5d4d594c8ca8) - **parser**: Fix separator generation for STRING_AGG *(PR [#4887](https://github.com/tobymao/sqlglot/pull/4887) by [@VaggelisD](https://github.com/VaggelisD))*
+- [`081994e`](https://github.com/tobymao/sqlglot/commit/081994ea85c7aa1cbbbc40a24857dba4fd6c1c61) - **snowflake**: Fix parsing multi-part format name *(PR [#4885](https://github.com/tobymao/sqlglot/pull/4885) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4882](https://github.com/tobymao/sqlglot/issues/4882) opened by [@kharigardner](https://github.com/kharigardner)*
+- [`38111a5`](https://github.com/tobymao/sqlglot/commit/38111a5eaa6bde640e25aa408ff7ea9ea6864c0b) - apply unpivot alias string conversion only for UNPIVOT *(PR [#4886](https://github.com/tobymao/sqlglot/pull/4886) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4003](https://github.com/TobikoData/sqlmesh/issues/4003) opened by [@lucargir](https://github.com/lucargir)*
+- [`491c407`](https://github.com/tobymao/sqlglot/commit/491c407d48a24b6d4093e9c9bfdc3d8c27c29e4c) - **clickhouse**: parse parameter key as Var instead of Identifier *(PR [#4888](https://github.com/tobymao/sqlglot/pull/4888) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4002](https://github.com/TobikoData/sqlmesh/issues/4002) opened by [@petrjanda](https://github.com/petrjanda)*
+
+
+## [v26.10.1] - 2025-03-13
+### :bug: Bug Fixes
+- [`2b3824f`](https://github.com/tobymao/sqlglot/commit/2b3824f0bac5dae48ea7eecbe2168afe79038d06) - **duckdb**: revert timestamp/datetime -> timestampntz parsing temporarily *(PR [#4878](https://github.com/tobymao/sqlglot/pull/4878) by [@georgesittas](https://github.com/georgesittas))*
+
+
+## [v26.10.0] - 2025-03-13
+### :boom: BREAKING CHANGES
+- due to [`c0bfcc6`](https://github.com/tobymao/sqlglot/commit/c0bfcc66b97ce667a1ead608c4fbbee69db633fa) - postgres case insesitive formats closes [#4860](https://github.com/tobymao/sqlglot/pull/4860) *(commit by [@tobymao](https://github.com/tobymao))*:
+
+  postgres case insesitive formats closes #4860
+
+- due to [`6914684`](https://github.com/tobymao/sqlglot/commit/69146842d005ae0edecbd7f6f842f648ae0622e7) - duckdb defaults timestampntz closes [#4859](https://github.com/tobymao/sqlglot/pull/4859) *(commit by [@tobymao](https://github.com/tobymao))*:
+
+  duckdb defaults timestampntz closes #4859
+
+- due to [`ceb1f02`](https://github.com/tobymao/sqlglot/commit/ceb1f026dd04926a6a210de9d16da4dffef4717c) - support TO_CHAR to duckdb STRFTIME *(PR [#4866](https://github.com/tobymao/sqlglot/pull/4866) by [@geooo109](https://github.com/geooo109))*:
+
+  support TO_CHAR to duckdb STRFTIME (#4866)
+
+- due to [`d748e53`](https://github.com/tobymao/sqlglot/commit/d748e53f6a77196bef6550b6d9fddf41076c01fa) - Introduce pyproject.toml and switch to packaging via build *(PR [#4865](https://github.com/tobymao/sqlglot/pull/4865) by [@erindru](https://github.com/erindru))*:
+
+  Introduce pyproject.toml and switch to packaging via build (#4865)
+
+- due to [`038da09`](https://github.com/tobymao/sqlglot/commit/038da09f620cf057e4576b719c4e2f6712cbb804) - treat TABLE(...) as a UDTF *(PR [#4875](https://github.com/tobymao/sqlglot/pull/4875) by [@georgesittas](https://github.com/georgesittas))*:
+
+  treat TABLE(...) as a UDTF (#4875)
+
+- due to [`92e479e`](https://github.com/tobymao/sqlglot/commit/92e479ea7d70efc4bdccd17cb12b719aec603830) - support STRUCT(*) and MAP(*) *(PR [#4876](https://github.com/tobymao/sqlglot/pull/4876) by [@geooo109](https://github.com/geooo109))*:
+
+  support STRUCT(*) and MAP(*) (#4876)
+
+- due to [`87c94fe`](https://github.com/tobymao/sqlglot/commit/87c94fe91aa2a4bc2c255191d92aed450f3c7998) - turn off multi-arg coalesce simplification *(PR [#4877](https://github.com/tobymao/sqlglot/pull/4877) by [@georgesittas](https://github.com/georgesittas))*:
+
+  turn off multi-arg coalesce simplification (#4877)
+
+
+### :sparkles: New Features
+- [`54be278`](https://github.com/tobymao/sqlglot/commit/54be278361496367fb2f7d380634d3390879e58d) - **snowflake**: add support for HEX_DECODE_BINARY *(PR [#4855](https://github.com/tobymao/sqlglot/pull/4855) by [@sk-](https://github.com/sk-))*
+  - :arrow_lower_right: *addresses issue [#4852](https://github.com/tobymao/sqlglot/issues/4852) opened by [@sk-](https://github.com/sk-)*
+- [`47959a9`](https://github.com/tobymao/sqlglot/commit/47959a94a4693cb904cfb2e50ce8cc8ca5c2e22f) - **duckdb**: add support for prefix aliases *(PR [#4869](https://github.com/tobymao/sqlglot/pull/4869) by [@georgesittas](https://github.com/georgesittas))*
+
+### :bug: Bug Fixes
+- [`e942391`](https://github.com/tobymao/sqlglot/commit/e942391edcefb40f927887450765b4365b0e980d) - spark zone offset closes [#4858](https://github.com/tobymao/sqlglot/pull/4858) *(commit by [@tobymao](https://github.com/tobymao))*
+- [`c0bfcc6`](https://github.com/tobymao/sqlglot/commit/c0bfcc66b97ce667a1ead608c4fbbee69db633fa) - postgres case insesitive formats closes [#4860](https://github.com/tobymao/sqlglot/pull/4860) *(commit by [@tobymao](https://github.com/tobymao))*
+- [`6914684`](https://github.com/tobymao/sqlglot/commit/69146842d005ae0edecbd7f6f842f648ae0622e7) - duckdb defaults timestampntz closes [#4859](https://github.com/tobymao/sqlglot/pull/4859) *(commit by [@tobymao](https://github.com/tobymao))*
+- [`ceb1f02`](https://github.com/tobymao/sqlglot/commit/ceb1f026dd04926a6a210de9d16da4dffef4717c) - **snowflake**: support TO_CHAR to duckdb STRFTIME *(PR [#4866](https://github.com/tobymao/sqlglot/pull/4866) by [@geooo109](https://github.com/geooo109))*
+  - :arrow_lower_right: *fixes issue [#4857](https://github.com/tobymao/sqlglot/issues/4857) opened by [@asarama](https://github.com/asarama)*
+- [`80466f1`](https://github.com/tobymao/sqlglot/commit/80466f16aa081860bc9e65f425924a0620840cdf) - expand util - align normalization behaviour with lazy and non-lazy source providers. *(PR [#4874](https://github.com/tobymao/sqlglot/pull/4874) by [@omerhadari](https://github.com/omerhadari))*
+- [`038da09`](https://github.com/tobymao/sqlglot/commit/038da09f620cf057e4576b719c4e2f6712cbb804) - **snowflake**: treat TABLE(...) as a UDTF *(PR [#4875](https://github.com/tobymao/sqlglot/pull/4875) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4861](https://github.com/tobymao/sqlglot/issues/4861) opened by [@mattijsdp](https://github.com/mattijsdp)*
+- [`92e479e`](https://github.com/tobymao/sqlglot/commit/92e479ea7d70efc4bdccd17cb12b719aec603830) - **hive**: support STRUCT(*) and MAP(*) *(PR [#4876](https://github.com/tobymao/sqlglot/pull/4876) by [@geooo109](https://github.com/geooo109))*
+  - :arrow_lower_right: *fixes issue [#4871](https://github.com/tobymao/sqlglot/issues/4871) opened by [@btyuhas](https://github.com/btyuhas)*
+- [`87c94fe`](https://github.com/tobymao/sqlglot/commit/87c94fe91aa2a4bc2c255191d92aed450f3c7998) - **redshift**: turn off multi-arg coalesce simplification *(PR [#4877](https://github.com/tobymao/sqlglot/pull/4877) by [@georgesittas](https://github.com/georgesittas))*
+
+### :wrench: Chores
+- [`d748e53`](https://github.com/tobymao/sqlglot/commit/d748e53f6a77196bef6550b6d9fddf41076c01fa) - Introduce pyproject.toml and switch to packaging via build *(PR [#4865](https://github.com/tobymao/sqlglot/pull/4865) by [@erindru](https://github.com/erindru))*
+
+
+## [v26.9.0] - 2025-03-07
+### :boom: BREAKING CHANGES
+- due to [`6a3973b`](https://github.com/tobymao/sqlglot/commit/6a3973b7da639a19634bc352ea76f75735114c38) - Refactor exp.GroupConcat generation *(PR [#4823](https://github.com/tobymao/sqlglot/pull/4823) by [@VaggelisD](https://github.com/VaggelisD))*:
+
+  Refactor exp.GroupConcat generation (#4823)
+
+- due to [`813d2ad`](https://github.com/tobymao/sqlglot/commit/813d2ada7afd653b2aaff75cbddd7f011750f861) - use _parse_table_parts for udf parsing *(PR [#4829](https://github.com/tobymao/sqlglot/pull/4829) by [@geooo109](https://github.com/geooo109))*:
+
+  use _parse_table_parts for udf parsing (#4829)
+
+- due to [`7cdbad6`](https://github.com/tobymao/sqlglot/commit/7cdbad688cad7e7ce40df99802e93deb6a4d7abf) - add initial support for PUT statements *(PR [#4818](https://github.com/tobymao/sqlglot/pull/4818) by [@whummer](https://github.com/whummer))*:
+
+  add initial support for PUT statements (#4818)
+
+- due to [`8c0a6be`](https://github.com/tobymao/sqlglot/commit/8c0a6bec6e38f3f6ce9a90b6a9b6457de70c7228) - BLOB transpilation *(PR [#4844](https://github.com/tobymao/sqlglot/pull/4844) by [@geooo109](https://github.com/geooo109))*:
+
+  BLOB transpilation (#4844)
+
+
+### :sparkles: New Features
+- [`7e8975e`](https://github.com/tobymao/sqlglot/commit/7e8975efce0af350142f8fb437cf46dd46f2b8d9) - **oracle**: add FORCE property *(PR [#4828](https://github.com/tobymao/sqlglot/pull/4828) by [@geooo109](https://github.com/geooo109))*
+  - :arrow_lower_right: *addresses issue [#4826](https://github.com/tobymao/sqlglot/issues/4826) opened by [@Duchyna1](https://github.com/Duchyna1)*
+- [`7cdbad6`](https://github.com/tobymao/sqlglot/commit/7cdbad688cad7e7ce40df99802e93deb6a4d7abf) - **snowflake**: add initial support for PUT statements *(PR [#4818](https://github.com/tobymao/sqlglot/pull/4818) by [@whummer](https://github.com/whummer))*
+  - :arrow_lower_right: *addresses issue [#4813](https://github.com/tobymao/sqlglot/issues/4813) opened by [@whummer](https://github.com/whummer)*
+- [`f4d1a1f`](https://github.com/tobymao/sqlglot/commit/f4d1a1f4d8104b2efd56f568ca99c7e768466d19) - **hive**: add support for STORED BY syntax for storage handlers *(PR [#4832](https://github.com/tobymao/sqlglot/pull/4832) by [@tsamaras](https://github.com/tsamaras))*
+- [`b7a0df1`](https://github.com/tobymao/sqlglot/commit/b7a0df1b9a9cff2cd57db77ac0095c189b9d67ab) - **parser**: Support trailing commas after from *(PR [#4854](https://github.com/tobymao/sqlglot/pull/4854) by [@omerhadari](https://github.com/omerhadari))*
+
+### :bug: Bug Fixes
+- [`6a3973b`](https://github.com/tobymao/sqlglot/commit/6a3973b7da639a19634bc352ea76f75735114c38) - **duckdb, snowflake**: Refactor exp.GroupConcat generation *(PR [#4823](https://github.com/tobymao/sqlglot/pull/4823) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4821](https://github.com/tobymao/sqlglot/issues/4821) opened by [@asarama](https://github.com/asarama)*
+- [`08eb7f2`](https://github.com/tobymao/sqlglot/commit/08eb7f2032957c2fe3119963f344538b90d8f631) - **snowflake**: clean up PUT implementation *(PR [#4830](https://github.com/tobymao/sqlglot/pull/4830) by [@georgesittas](https://github.com/georgesittas))*
+- [`adf2fef`](https://github.com/tobymao/sqlglot/commit/adf2fef27dc341508c3b9c710da0f835277094a1) - **mysql**: Support for USING BTREE/HASH in PK *(PR [#4837](https://github.com/tobymao/sqlglot/pull/4837) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4833](https://github.com/tobymao/sqlglot/issues/4833) opened by [@Gohoy](https://github.com/Gohoy)*
+- [`8c0a6be`](https://github.com/tobymao/sqlglot/commit/8c0a6bec6e38f3f6ce9a90b6a9b6457de70c7228) - **mysql**: BLOB transpilation *(PR [#4844](https://github.com/tobymao/sqlglot/pull/4844) by [@geooo109](https://github.com/geooo109))*
+  - :arrow_lower_right: *fixes issue [#4839](https://github.com/tobymao/sqlglot/issues/4839) opened by [@Gohoy](https://github.com/Gohoy)*
+- [`0cb7a71`](https://github.com/tobymao/sqlglot/commit/0cb7a719de33ab1f6cfedf0833df7c79324b21f9) - **postgres**: Fix arrow extraction for string keys representing numbers *(PR [#4842](https://github.com/tobymao/sqlglot/pull/4842) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4840](https://github.com/tobymao/sqlglot/issues/4840) opened by [@superkashyap](https://github.com/superkashyap)*
+- [`2e223cb`](https://github.com/tobymao/sqlglot/commit/2e223cb3e0bc946b8aa97e115e4c0dc02e58d1c9) - **parser**: properly parse qualified columns when parsing "columns ops" *(PR [#4847](https://github.com/tobymao/sqlglot/pull/4847) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4845](https://github.com/tobymao/sqlglot/issues/4845) opened by [@maudlel](https://github.com/maudlel)*
+
+### :recycle: Refactors
+- [`813d2ad`](https://github.com/tobymao/sqlglot/commit/813d2ada7afd653b2aaff75cbddd7f011750f861) - use _parse_table_parts for udf parsing *(PR [#4829](https://github.com/tobymao/sqlglot/pull/4829) by [@geooo109](https://github.com/geooo109))*
+
+### :wrench: Chores
+- [`e4fd354`](https://github.com/tobymao/sqlglot/commit/e4fd354c8fb55752cb883eb3912950c17020a1df) - Simplify Hive's STORED BY property *(PR [#4838](https://github.com/tobymao/sqlglot/pull/4838) by [@VaggelisD](https://github.com/VaggelisD))*
+- [`8115b58`](https://github.com/tobymao/sqlglot/commit/8115b5853e621423eb2697b7253b17ef709dbdf0) - (duckdb): treat auto-increment DDL property as unsupported *(PR [#4849](https://github.com/tobymao/sqlglot/pull/4849) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *addresses issue [#4841](https://github.com/tobymao/sqlglot/issues/4841) opened by [@sk-](https://github.com/sk-)*
+- [`b05dddb`](https://github.com/tobymao/sqlglot/commit/b05dddbe5a7d45dfebefc3e04cb95d8c4d9802e9) - fix pdoc deployment *(PR [#4856](https://github.com/tobymao/sqlglot/pull/4856) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *addresses issue [#4853](https://github.com/tobymao/sqlglot/issues/4853) opened by [@tsamaras](https://github.com/tsamaras)*
+
+
+## [v26.8.0] - 2025-03-03
+### :boom: BREAKING CHANGES
+- due to [`596b66f`](https://github.com/tobymao/sqlglot/commit/596b66fc289140109db8f689c6e84264d643a47a) - add support for and/2 and or/2 functions *(PR [#4806](https://github.com/tobymao/sqlglot/pull/4806) by [@georgesittas](https://github.com/georgesittas))*:
+
+  add support for and/2 and or/2 functions (#4806)
+
+- due to [`eae860c`](https://github.com/tobymao/sqlglot/commit/eae860ce5b59b9e0b791fe79686899efb83df1dd) - expand DISTINCT ON expressions like we do for GROUP/ORDER by *(PR [#4807](https://github.com/tobymao/sqlglot/pull/4807) by [@georgesittas](https://github.com/georgesittas))*:
+
+  expand DISTINCT ON expressions like we do for GROUP/ORDER by (#4807)
+
+- due to [`83e6a87`](https://github.com/tobymao/sqlglot/commit/83e6a87f8d233eac6d3bcd3a49451a14dc10e06e) - Parse SHA256 *(PR [#4816](https://github.com/tobymao/sqlglot/pull/4816) by [@VaggelisD](https://github.com/VaggelisD))*:
+
+  Parse SHA256 (#4816)
+
+
+### :sparkles: New Features
+- [`50539ce`](https://github.com/tobymao/sqlglot/commit/50539ced46de3949f6a70acdab86129fb50c9385) - **trino**: add support for ON ... ERROR/NULL syntax for JSON_QUERY *(PR [#4805](https://github.com/tobymao/sqlglot/pull/4805) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *addresses issue [#3905](https://github.com/TobikoData/sqlmesh/issues/3905) opened by [@darkcofy](https://github.com/darkcofy)*
+- [`596b66f`](https://github.com/tobymao/sqlglot/commit/596b66fc289140109db8f689c6e84264d643a47a) - **clickhouse**: add support for and/2 and or/2 functions *(PR [#4806](https://github.com/tobymao/sqlglot/pull/4806) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *addresses issue [#4803](https://github.com/tobymao/sqlglot/issues/4803) opened by [@xtess16](https://github.com/xtess16)*
+- [`c5bf122`](https://github.com/tobymao/sqlglot/commit/c5bf122a6aa7ca315ad726e6ea3d4a98eebd68d0) - **mysql**: support setting visibility on `ALTER COLUMN`. *(PR [#4809](https://github.com/tobymao/sqlglot/pull/4809) by [@burnison](https://github.com/burnison))*
+
+### :bug: Bug Fixes
+- [`6441d00`](https://github.com/tobymao/sqlglot/commit/6441d0041ccec7f1c28763f5775b6195d2049dc6) - orphan node(s) in eliminate_join_marks *(PR [#4808](https://github.com/tobymao/sqlglot/pull/4808) by [@snovik75](https://github.com/snovik75))*
+- [`eae860c`](https://github.com/tobymao/sqlglot/commit/eae860ce5b59b9e0b791fe79686899efb83df1dd) - **optimizer**: expand DISTINCT ON expressions like we do for GROUP/ORDER by *(PR [#4807](https://github.com/tobymao/sqlglot/pull/4807) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4791](https://github.com/tobymao/sqlglot/issues/4791) opened by [@Fosly](https://github.com/Fosly)*
+- [`5ef35f2`](https://github.com/tobymao/sqlglot/commit/5ef35f2dc622d96b013a2651c71e1a32933f51cb) - **clickhouse**: unparseable `AggregateFunction(count)` *(PR [#4812](https://github.com/tobymao/sqlglot/pull/4812) by [@pkit](https://github.com/pkit))*
+- [`83e6a87`](https://github.com/tobymao/sqlglot/commit/83e6a87f8d233eac6d3bcd3a49451a14dc10e06e) - **duckdb**: Parse SHA256 *(PR [#4816](https://github.com/tobymao/sqlglot/pull/4816) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4815](https://github.com/tobymao/sqlglot/issues/4815) opened by [@muuuuwa](https://github.com/muuuuwa)*
+- [`faf6d41`](https://github.com/tobymao/sqlglot/commit/faf6d416afe30bf0bc24649fcceccf79fbfb8ca1) - allow duplicate nodes in matchings *(PR [#4817](https://github.com/tobymao/sqlglot/pull/4817) by [@tobymao](https://github.com/tobymao))*
+
+### :wrench: Chores
+- [`e34f3bc`](https://github.com/tobymao/sqlglot/commit/e34f3bc99f832ce2affb3a0297329f3d1cd7244e) - **optimizer**: refactor DISTINCT ON qualification to better match ORDER BY *(PR [#4811](https://github.com/tobymao/sqlglot/pull/4811) by [@georgesittas](https://github.com/georgesittas))*
+
+
+## [v26.7.0] - 2025-02-26
+### :boom: BREAKING CHANGES
+- due to [`466c839`](https://github.com/tobymao/sqlglot/commit/466c839c2cfc94b398dd619b738df165f2876cdb) - Remove extra MAP bracket and ARRAY wrap *(PR [#4712](https://github.com/tobymao/sqlglot/pull/4712) by [@VaggelisD](https://github.com/VaggelisD))*:
+
+  Remove extra MAP bracket and ARRAY wrap (#4712)
+
+- due to [`79ab311`](https://github.com/tobymao/sqlglot/commit/79ab3116758c240786ab4353a26f1646e242a61b) - add generate_series table column alias *(PR [#4741](https://github.com/tobymao/sqlglot/pull/4741) by [@georgesittas](https://github.com/georgesittas))*:
+
+  add generate_series table column alias (#4741)
+
+- due to [`66b3ea9`](https://github.com/tobymao/sqlglot/commit/66b3ea905af34cfedc961c68ba738ba90d16221d) - respect type nullability when casting in strtodate_sql *(PR [#4744](https://github.com/tobymao/sqlglot/pull/4744) by [@sleshJdev](https://github.com/sleshJdev))*:
+
+  respect type nullability when casting in strtodate_sql (#4744)
+
+- due to [`91f47fe`](https://github.com/tobymao/sqlglot/commit/91f47fec2a8c727f7e4c93fa54b6f06a36a6b42f) - Support for exp.HexString in DuckDB/Presto/Trino *(PR [#4743](https://github.com/tobymao/sqlglot/pull/4743) by [@VaggelisD](https://github.com/VaggelisD))*:
+
+  Support for exp.HexString in DuckDB/Presto/Trino (#4743)
+
+- due to [`0596176`](https://github.com/tobymao/sqlglot/commit/0596176dd59737f945624d6453259072917e2fee) - generate CASE expression instead of COUNT_IF for <v1.2 *(PR [#4755](https://github.com/tobymao/sqlglot/pull/4755) by [@georgesittas](https://github.com/georgesittas))*:
+
+  generate CASE expression instead of COUNT_IF for <v1.2 (#4755)
+
+- due to [`01008a9`](https://github.com/tobymao/sqlglot/commit/01008a91144a20e830df3783ff04beba7d029fec) - enable transpilation of CURDATE fixes [#4758](https://github.com/tobymao/sqlglot/pull/4758) *(commit by [@georgesittas](https://github.com/georgesittas))*:
+
+  enable transpilation of CURDATE fixes #4758
+
+- due to [`dc69192`](https://github.com/tobymao/sqlglot/commit/dc691923655d022f2a4b23e9df24a9d1518e7048) - column qualify not applying in an order by inside within group when it also the alias *(PR [#4780](https://github.com/tobymao/sqlglot/pull/4780) by [@ran-lakeway](https://github.com/ran-lakeway))*:
+
+  column qualify not applying in an order by inside within group when it also the alias (#4780)
+
+- due to [`ae00c92`](https://github.com/tobymao/sqlglot/commit/ae00c9203197a436bdb81289580eba0e7fc374ec) - properly alias generate series *(PR [#4789](https://github.com/tobymao/sqlglot/pull/4789) by [@georgesittas](https://github.com/georgesittas))*:
+
+  properly alias generate series (#4789)
+
+- due to [`14c3de9`](https://github.com/tobymao/sqlglot/commit/14c3de91072435a68dd8d0f024dff0a0fd236cb8) - parse unqualified names in DISTINCT ON (...) as identifiers *(PR [#4795](https://github.com/tobymao/sqlglot/pull/4795) by [@georgesittas](https://github.com/georgesittas))*:
+
+  parse unqualified names in DISTINCT ON (...) as identifiers (#4795)
+
+- due to [`00c7f05`](https://github.com/tobymao/sqlglot/commit/00c7f05f348eeb6b60d4e70d7e29e564caf38f64) - do not coerce parameterized types *(PR [#4796](https://github.com/tobymao/sqlglot/pull/4796) by [@georgesittas](https://github.com/georgesittas))*:
+
+  do not coerce parameterized types (#4796)
+
+- due to [`513fad4`](https://github.com/tobymao/sqlglot/commit/513fad47cd321fe8431e673351bdd5f0674d5af1) - show databases, functions, procedures and warehouses  *(PR [#4787](https://github.com/tobymao/sqlglot/pull/4787) by [@tekumara](https://github.com/tekumara))*:
+
+  show databases, functions, procedures and warehouses  (#4787)
+
+- due to [`a9ae2d2`](https://github.com/tobymao/sqlglot/commit/a9ae2d229640f22134410ca5826c6f19df7ef523) - support TOP with PERCENT and WITH TIES *(PR [#4801](https://github.com/tobymao/sqlglot/pull/4801) by [@geooo109](https://github.com/geooo109))*:
+
+  support TOP with PERCENT and WITH TIES (#4801)
+
+- due to [`e05983a`](https://github.com/tobymao/sqlglot/commit/e05983a62ee9b3689e8a277924f2b1e36744a2a9) - make hex literal tokenization more robust *(PR [#4802](https://github.com/tobymao/sqlglot/pull/4802) by [@georgesittas](https://github.com/georgesittas))*:
+
+  make hex literal tokenization more robust (#4802)
+
+- due to [`e9c8eae`](https://github.com/tobymao/sqlglot/commit/e9c8eae060c05d02f6f65916d59f1792098679c8) - bump sqlglotrs to 0.4.0 *(commit by [@georgesittas](https://github.com/georgesittas))*:
+
+  bump sqlglotrs to 0.4.0
+
+
+### :sparkles: New Features
+- [`5c59943`](https://github.com/tobymao/sqlglot/commit/5c599434fbe4d4f1059196b1530d02d7d204d3a9) - **mysql**: add unsigned double type *(PR [#4734](https://github.com/tobymao/sqlglot/pull/4734) by [@GabrielVSMachado](https://github.com/GabrielVSMachado))*
+- [`31b2139`](https://github.com/tobymao/sqlglot/commit/31b21391cc521cf15a098c335d4202378ad96c0b) - **duckdb**: transpile JSONB into JSON *(PR [#4753](https://github.com/tobymao/sqlglot/pull/4753) by [@georgesittas](https://github.com/georgesittas))*
+- [`0596176`](https://github.com/tobymao/sqlglot/commit/0596176dd59737f945624d6453259072917e2fee) - **duckdb**: generate CASE expression instead of COUNT_IF for <v1.2 *(PR [#4755](https://github.com/tobymao/sqlglot/pull/4755) by [@georgesittas](https://github.com/georgesittas))*
+- [`2b3ec0f`](https://github.com/tobymao/sqlglot/commit/2b3ec0fbd6bd84dd893c244892fc1a63e2eab7bd) - **snowflake**: add support for USE SECONDARY ROLES *(PR [#4761](https://github.com/tobymao/sqlglot/pull/4761) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *addresses issue [#4760](https://github.com/tobymao/sqlglot/issues/4760) opened by [@merlindso](https://github.com/merlindso)*
+- [`2079bdb`](https://github.com/tobymao/sqlglot/commit/2079bdbb5d72d7fe02019a9ba6d1684403e30b00) - **postgres**: Add support for WITH RECURSIVE search options *(PR [#4773](https://github.com/tobymao/sqlglot/pull/4773) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *addresses issue [#4763](https://github.com/tobymao/sqlglot/issues/4763) opened by [@psanjeev-cellino](https://github.com/psanjeev-cellino)*
+- [`70eefc6`](https://github.com/tobymao/sqlglot/commit/70eefc694c20600cdd99d682393cae81812d0b00) - **duckdb**: add support for underscored numbers fixes [#4777](https://github.com/tobymao/sqlglot/pull/4777) *(commit by [@georgesittas](https://github.com/georgesittas))*
+- [`f6be1d4`](https://github.com/tobymao/sqlglot/commit/f6be1d4b2c34ea4e3e98c3ae5e272e2f2b1912f3) - **clickhouse**: add support for dynamic json casting *(PR [#4784](https://github.com/tobymao/sqlglot/pull/4784) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *addresses issue [#4776](https://github.com/tobymao/sqlglot/issues/4776) opened by [@pkit](https://github.com/pkit)*
+- [`513fad4`](https://github.com/tobymao/sqlglot/commit/513fad47cd321fe8431e673351bdd5f0674d5af1) - **snowflake**: show databases, functions, procedures and warehouses  *(PR [#4787](https://github.com/tobymao/sqlglot/pull/4787) by [@tekumara](https://github.com/tekumara))*
+- [`575c979`](https://github.com/tobymao/sqlglot/commit/575c979b77831bd356cc7e9b39e78fcca2b344be) - **clickhouse**: support `GLOBAL NOT IN` *(PR [#4798](https://github.com/tobymao/sqlglot/pull/4798) by [@hdhoang](https://github.com/hdhoang))*
+- [`856faa9`](https://github.com/tobymao/sqlglot/commit/856faa9773dea3b214571932c7d65e5773c5dc76) - **mysql**: add support for `ALTER INDEX` *(PR [#4800](https://github.com/tobymao/sqlglot/pull/4800) by [@burnison](https://github.com/burnison))*
+
+### :bug: Bug Fixes
+- [`7cad7f0`](https://github.com/tobymao/sqlglot/commit/7cad7f06d676bf230238bf08aea91701e1fa1d95) - Add additional allowed tokens for parsing aggregate functions in DDL *(PR [#4727](https://github.com/tobymao/sqlglot/pull/4727) by [@dorranh](https://github.com/dorranh))*
+  - :arrow_lower_right: *fixes issue [#4723](https://github.com/tobymao/sqlglot/issues/4723) opened by [@dorranh](https://github.com/dorranh)*
+- [`466c839`](https://github.com/tobymao/sqlglot/commit/466c839c2cfc94b398dd619b738df165f2876cdb) - **duckdb**: Remove extra MAP bracket and ARRAY wrap *(PR [#4712](https://github.com/tobymao/sqlglot/pull/4712) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4710](https://github.com/tobymao/sqlglot/issues/4710) opened by [@eakmanrq](https://github.com/eakmanrq)*
+- [`2c7dbe2`](https://github.com/tobymao/sqlglot/commit/2c7dbe2f84fcba044881776ebdeed6ee980fe0dd) - **duckdb**: Fix INTERVAL roundtrip of DATE_ADD *(PR [#4732](https://github.com/tobymao/sqlglot/pull/4732) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4728](https://github.com/tobymao/sqlglot/issues/4728) opened by [@whao89](https://github.com/whao89)*
+- [`cbad48d`](https://github.com/tobymao/sqlglot/commit/cbad48d4102412ea3fd20272cf75974a8c53bb34) - infinite traversal in eliminate_qualify closes [#4735](https://github.com/tobymao/sqlglot/pull/4735) *(commit by [@tobymao](https://github.com/tobymao))*
+- [`79ab311`](https://github.com/tobymao/sqlglot/commit/79ab3116758c240786ab4353a26f1646e242a61b) - **clickhouse**: add generate_series table column alias *(PR [#4741](https://github.com/tobymao/sqlglot/pull/4741) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4740](https://github.com/tobymao/sqlglot/issues/4740) opened by [@martijnthe](https://github.com/martijnthe)*
+- [`f0ce5ce`](https://github.com/tobymao/sqlglot/commit/f0ce5ce80d5a0ac24da4295a2f660bad9d7934be) - **snowflake**: unqualify ANY ORDER BY columns *(PR [#4737](https://github.com/tobymao/sqlglot/pull/4737) by [@georgesittas](https://github.com/georgesittas))*
+- [`66b3ea9`](https://github.com/tobymao/sqlglot/commit/66b3ea905af34cfedc961c68ba738ba90d16221d) - **clickhouse**: respect type nullability when casting in strtodate_sql *(PR [#4744](https://github.com/tobymao/sqlglot/pull/4744) by [@sleshJdev](https://github.com/sleshJdev))*
+- [`fda40a9`](https://github.com/tobymao/sqlglot/commit/fda40a9e670f30822dee05651d2336494c0d4f3b) - **clickhouse**: add BOTH if trim type is unspecified fixes [#4746](https://github.com/tobymao/sqlglot/pull/4746) *(commit by [@georgesittas](https://github.com/georgesittas))*
+- [`91f47fe`](https://github.com/tobymao/sqlglot/commit/91f47fec2a8c727f7e4c93fa54b6f06a36a6b42f) - Support for exp.HexString in DuckDB/Presto/Trino *(PR [#4743](https://github.com/tobymao/sqlglot/pull/4743) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4739](https://github.com/tobymao/sqlglot/issues/4739) opened by [@sk-](https://github.com/sk-)*
+- [`f94656d`](https://github.com/tobymao/sqlglot/commit/f94656d06b118cee69ec8305fde948caa250cb69) - **clickhouse**: Generation of exp.ArrayConcat *(PR [#4754](https://github.com/tobymao/sqlglot/pull/4754) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4751](https://github.com/tobymao/sqlglot/issues/4751) opened by [@maximlipiev](https://github.com/maximlipiev)*
+- [`cf33711`](https://github.com/tobymao/sqlglot/commit/cf337114a2259058b2a8cbde22d0a560001df9a5) - **tokenizer-rs**: use is_whitespace in token scan loop *(PR [#4756](https://github.com/tobymao/sqlglot/pull/4756) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4748](https://github.com/tobymao/sqlglot/issues/4748) opened by [@gesoges0](https://github.com/gesoges0)*
+- [`01008a9`](https://github.com/tobymao/sqlglot/commit/01008a91144a20e830df3783ff04beba7d029fec) - **mysql**: enable transpilation of CURDATE fixes [#4758](https://github.com/tobymao/sqlglot/pull/4758) *(commit by [@georgesittas](https://github.com/georgesittas))*
+- [`1fbd108`](https://github.com/tobymao/sqlglot/commit/1fbd108e8e9b85ae873bb702ff8f73c5ae94b392) - **sqlite**: correct json key value pair separator *(PR [#4774](https://github.com/tobymao/sqlglot/pull/4774) by [@geooo109](https://github.com/geooo109))*
+  - :arrow_lower_right: *fixes issue [#4770](https://github.com/tobymao/sqlglot/issues/4770) opened by [@ori-n](https://github.com/ori-n)*
+- [`ccdb92a`](https://github.com/tobymao/sqlglot/commit/ccdb92a7b676d3454cf9f6a18a2b0becec676169) - **optimizer**: do not qualify ctes that are pivoted *(PR [#4775](https://github.com/tobymao/sqlglot/pull/4775) by [@georgesittas](https://github.com/georgesittas))*
+- [`ec4e97c`](https://github.com/tobymao/sqlglot/commit/ec4e97c31c16a1c8b5eb1acfba0ef77f064505b4) - **parser**: Do not preemptively create chunks for comment only statements *(PR [#4772](https://github.com/tobymao/sqlglot/pull/4772) by [@VaggelisD](https://github.com/VaggelisD))*
+  - :arrow_lower_right: *fixes issue [#4762](https://github.com/tobymao/sqlglot/issues/4762) opened by [@dbittenbender](https://github.com/dbittenbender)*
+- [`fc8aec3`](https://github.com/tobymao/sqlglot/commit/fc8aec35b211395ca603b2feabd1e5a5006fd677) - **parser**: Revert [#4772](https://github.com/tobymao/sqlglot/pull/4772) *(PR [#4783](https://github.com/tobymao/sqlglot/pull/4783) by [@VaggelisD](https://github.com/VaggelisD))*
+- [`dc69192`](https://github.com/tobymao/sqlglot/commit/dc691923655d022f2a4b23e9df24a9d1518e7048) - **optimizer**: column qualify not applying in an order by inside within group when it also the alias *(PR [#4780](https://github.com/tobymao/sqlglot/pull/4780) by [@ran-lakeway](https://github.com/ran-lakeway))*
+- [`ae00c92`](https://github.com/tobymao/sqlglot/commit/ae00c9203197a436bdb81289580eba0e7fc374ec) - **postgres**: properly alias generate series *(PR [#4789](https://github.com/tobymao/sqlglot/pull/4789) by [@georgesittas](https://github.com/georgesittas))*
+- [`14c3de9`](https://github.com/tobymao/sqlglot/commit/14c3de91072435a68dd8d0f024dff0a0fd236cb8) - **optimizer**: parse unqualified names in DISTINCT ON (...) as identifiers *(PR [#4795](https://github.com/tobymao/sqlglot/pull/4795) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4791](https://github.com/tobymao/sqlglot/issues/4791) opened by [@Fosly](https://github.com/Fosly)*
+- [`00c7f05`](https://github.com/tobymao/sqlglot/commit/00c7f05f348eeb6b60d4e70d7e29e564caf38f64) - **optimizer**: do not coerce parameterized types *(PR [#4796](https://github.com/tobymao/sqlglot/pull/4796) by [@georgesittas](https://github.com/georgesittas))*
+  - :arrow_lower_right: *fixes issue [#4792](https://github.com/tobymao/sqlglot/issues/4792) opened by [@georgesittas](https://github.com/georgesittas)*
+- [`9f6b4f7`](https://github.com/tobymao/sqlglot/commit/9f6b4f7dd6ea8eb80d8d5d3b75eeff9e262ceba2) - **snowflake**: add missing clauses in SHOW statements *(PR [#4797](https://github.com/tobymao/sqlglot/pull/4797) by [@georgesittas](https://github.com/georgesittas))*
+- [`a9ae2d2`](https://github.com/tobymao/sqlglot/commit/a9ae2d229640f22134410ca5826c6f19df7ef523) - **tsql**: support TOP with PERCENT and WITH TIES *(PR [#4801](https://github.com/tobymao/sqlglot/pull/4801) by [@geooo109](https://github.com/geooo109))*
+  - :arrow_lower_right: *fixes issue [#4793](https://github.com/tobymao/sqlglot/issues/4793) opened by [@gleb-daax](https://github.com/gleb-daax)*
+- [`e05983a`](https://github.com/tobymao/sqlglot/commit/e05983a62ee9b3689e8a277924f2b1e36744a2a9) - **tokenizer-rs**: make hex literal tokenization more robust *(PR [#4802](https://github.com/tobymao/sqlglot/pull/4802) by [@georgesittas](https://github.com/georgesittas))*
+
+### :wrench: Chores
+- [`6c4c69e`](https://github.com/tobymao/sqlglot/commit/6c4c69e95d504ec839f7abd571eb2f614ea3c9ca) - move t-sql generators to base, clean up set_sql *(commit by [@georgesittas](https://github.com/georgesittas))*
+- [`4bf897d`](https://github.com/tobymao/sqlglot/commit/4bf897da6332175c22b772beb0b0cb6e6e941ebb) - remove redundant "parts" arg from CH ast, move gen methods to base *(PR [#4779](https://github.com/tobymao/sqlglot/pull/4779) by [@georgesittas](https://github.com/georgesittas))*
+- [`e9c8eae`](https://github.com/tobymao/sqlglot/commit/e9c8eae060c05d02f6f65916d59f1792098679c8) - bump sqlglotrs to 0.4.0 *(commit by [@georgesittas](https://github.com/georgesittas))*
+
+
 ## [v26.6.0] - 2025-02-10
 ### :boom: BREAKING CHANGES
 - due to [`a790e41`](https://github.com/tobymao/sqlglot/commit/a790e41736884bde7a8172f458db92d80064556f) - avoid redundant casts in FROM/TO_UTC_TIMESTAMP *(PR [#4725](https://github.com/tobymao/sqlglot/pull/4725) by [@georgesittas](https://github.com/georgesittas))*:
@@ -5885,3 +6178,10 @@ Changelog
 [v26.4.1]: https://github.com/tobymao/sqlglot/compare/v26.4.0...v26.4.1
 [v26.5.0]: https://github.com/tobymao/sqlglot/compare/v26.4.1...v26.5.0
 [v26.6.0]: https://github.com/tobymao/sqlglot/compare/v26.5.0...v26.6.0
+[v26.7.0]: https://github.com/tobymao/sqlglot/compare/v26.6.0...v26.7.0
+[v26.8.0]: https://github.com/tobymao/sqlglot/compare/v26.7.0...v26.8.0
+[v26.9.0]: https://github.com/tobymao/sqlglot/compare/v26.8.0...v26.9.0
+[v26.10.0]: https://github.com/tobymao/sqlglot/compare/v26.9.0...v26.10.0
+[v26.10.1]: https://github.com/tobymao/sqlglot/compare/v26.10.0...v26.10.1
+[v26.11.0]: https://github.com/tobymao/sqlglot/compare/v26.10.1...v26.11.0
+[v26.11.1]: https://github.com/tobymao/sqlglot/compare/v26.11.0...v26.11.1

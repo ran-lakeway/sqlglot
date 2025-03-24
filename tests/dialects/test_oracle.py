@@ -143,13 +143,13 @@ class TestOracle(Validator):
             },
         )
         self.validate_all(
-            "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'yyyy/mm/dd') AND TO_DATE(f.C_EDATE, 'yyyy/mm/dd')",
+            "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'YYYY/MM/DD') AND TO_DATE(f.C_EDATE, 'YYYY/MM/DD')",
             read={
                 "postgres": "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'yyyy/mm/dd') AND TO_DATE(f.C_EDATE, 'yyyy/mm/dd')",
             },
             write={
-                "oracle": "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'yyyy/mm/dd') AND TO_DATE(f.C_EDATE, 'yyyy/mm/dd')",
-                "postgres": "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'yyyy/mm/dd') AND TO_DATE(f.C_EDATE, 'yyyy/mm/dd')",
+                "oracle": "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'YYYY/MM/DD') AND TO_DATE(f.C_EDATE, 'YYYY/MM/DD')",
+                "postgres": "CURRENT_TIMESTAMP BETWEEN TO_DATE(f.C_SDATE, 'YYYY/MM/DD') AND TO_DATE(f.C_EDATE, 'YYYY/MM/DD')",
             },
         )
         self.validate_all(
@@ -319,6 +319,7 @@ class TestOracle(Validator):
                 "tsql": "SELECT * FROM t ORDER BY (SELECT NULL) OFFSET 0 ROWS FETCH FIRST 10 ROWS ONLY",
             },
         )
+        self.validate_identity("CREATE OR REPLACE FORCE VIEW foo1.foo2")
 
     def test_join_marker(self):
         self.validate_identity("SELECT e1.x, e2.x FROM e e1, e e2 WHERE e1.y (+) = e2.y")

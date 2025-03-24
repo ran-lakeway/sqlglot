@@ -142,7 +142,6 @@ LANGUAGE js AS
         self.validate_identity("SELECT test.Unknown FROM test")
         self.validate_identity(r"SELECT '\n\r\a\v\f\t'")
         self.validate_identity("SELECT * FROM tbl FOR SYSTEM_TIME AS OF z")
-        self.validate_identity("STRING_AGG(DISTINCT a ORDER BY b DESC, c DESC LIMIT 10)")
         self.validate_identity("SELECT PARSE_TIMESTAMP('%c', 'Thu Dec 25 07:30:00 2008', 'UTC')")
         self.validate_identity("SELECT ANY_VALUE(fruit HAVING MAX sold) FROM fruits")
         self.validate_identity("SELECT ANY_VALUE(fruit HAVING MIN sold) FROM fruits")
@@ -150,10 +149,6 @@ LANGUAGE js AS
         self.validate_identity("SELECT CAST(CURRENT_DATE AS STRING FORMAT 'DAY') AS current_day")
         self.validate_identity("SAFE_CAST(encrypted_value AS STRING FORMAT 'BASE64')")
         self.validate_identity("CAST(encrypted_value AS STRING FORMAT 'BASE64')")
-        self.validate_identity("STRING_AGG(a)")
-        self.validate_identity("STRING_AGG(a, ' & ')")
-        self.validate_identity("STRING_AGG(DISTINCT a, ' & ')")
-        self.validate_identity("STRING_AGG(a, ' & ' ORDER BY LENGTH(a))")
         self.validate_identity("DATE(2016, 12, 25)")
         self.validate_identity("DATE(CAST('2016-12-25 23:59:59' AS DATETIME))")
         self.validate_identity("SELECT foo IN UNNEST(bar) AS bla")
@@ -201,6 +196,12 @@ LANGUAGE js AS
         self.validate_identity("CAST(x AS TIMESTAMPTZ)", "CAST(x AS TIMESTAMP)")
         self.validate_identity("CAST(x AS RECORD)", "CAST(x AS STRUCT)")
         self.validate_identity("SELECT * FROM x WHERE x.y >= (SELECT MAX(a) FROM b-c) - 20")
+        self.validate_identity(
+            "SELECT FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', CURRENT_TIMESTAMP(), 'Europe/Berlin') AS ts"
+        )
+        self.validate_identity(
+            "SELECT cars, apples FROM some_table PIVOT(SUM(total_counts) FOR products IN ('general.cars' AS cars, 'food.apples' AS apples))"
+        )
         self.validate_identity(
             "MERGE INTO dataset.NewArrivals USING (SELECT * FROM UNNEST([('microwave', 10, 'warehouse #1'), ('dryer', 30, 'warehouse #1'), ('oven', 20, 'warehouse #2')])) ON FALSE WHEN NOT MATCHED THEN INSERT ROW WHEN NOT MATCHED BY SOURCE THEN DELETE"
         )
@@ -319,6 +320,13 @@ LANGUAGE js AS
             "SELECT CAST(1 AS INT64)",
         )
 
+        self.validate_all(
+            "SELECT DATE_SUB(CURRENT_DATE(), INTERVAL 2 DAY)",
+            write={
+                "bigquery": "SELECT DATE_SUB(CURRENT_DATE, INTERVAL '2' DAY)",
+                "databricks": "SELECT DATE_ADD(CURRENT_DATE, -2)",
+            },
+        )
         self.validate_all(
             "SELECT DATE_SUB(DATE '2008-12-25', INTERVAL 5 DAY)",
             write={
@@ -865,6 +873,7 @@ LANGUAGE js AS
                 "presto": "SHA256(x)",
                 "trino": "SHA256(x)",
                 "postgres": "SHA256(x)",
+                "duckdb": "SHA256(x)",
             },
             write={
                 "bigquery": "SHA256(x)",
@@ -875,6 +884,7 @@ LANGUAGE js AS
                 "redshift": "SHA2(x, 256)",
                 "trino": "SHA256(x)",
                 "duckdb": "SHA256(x)",
+                "snowflake": "SHA2(x, 256)",
             },
         )
         self.validate_all(
@@ -1309,8 +1319,8 @@ LANGUAGE js AS
                 "mysql": "DATE_ADD(CURRENT_DATE, INTERVAL '-1' DAY)",
                 "postgres": "CURRENT_DATE + INTERVAL '-1 DAY'",
                 "presto": "DATE_ADD('DAY', CAST('-1' AS BIGINT), CURRENT_DATE)",
-                "hive": "DATE_ADD(CURRENT_DATE, '-1')",
-                "spark": "DATE_ADD(CURRENT_DATE, '-1')",
+                "hive": "DATE_ADD(CURRENT_DATE, -1)",
+                "spark": "DATE_ADD(CURRENT_DATE, -1)",
             },
         )
         self.validate_all(
@@ -1842,12 +1852,6 @@ WHERE
             "CREATE TEMPORARY FUNCTION string_length_0(strings ARRAY<STRING>) RETURNS FLOAT64 LANGUAGE js OPTIONS (library=['gs://ibis-testing-libraries/lodash.min.js']) AS '\\'use strict\\'; function string_length(strings) { return _.sum(_.map(strings, ((x) => x.length))); } return string_length(strings);'",
         )
 
-    def test_group_concat(self):
-        self.validate_all(
-            "SELECT a, GROUP_CONCAT(b) FROM table GROUP BY a",
-            write={"bigquery": "SELECT a, STRING_AGG(b) FROM table GROUP BY a"},
-        )
-
     def test_remove_precision_parameterized_types(self):
         self.validate_identity("CREATE TABLE test (a NUMERIC(10, 2))")
         self.validate_identity(
@@ -2344,4 +2348,21 @@ OPTIONS (
                 "duckdb": "SELECT STRFTIME(CAST(CAST('2050-12-25 15:30:55+00' AS TIMESTAMPTZ) AS TIMESTAMP), '%b-%d-%Y')",
                 "snowflake": "SELECT TO_CHAR(CAST(CAST('2050-12-25 15:30:55+00' AS TIMESTAMPTZ) AS TIMESTAMP), 'mon-DD-yyyy')",
             },
+        )
+
+    def test_string_agg(self):
+        self.validate_identity(
+            "SELECT a, GROUP_CONCAT(b) FROM table GROUP BY a",
+            "SELECT a, STRING_AGG(b, ',') FROM table GROUP BY a",
+        )
+
+        self.validate_identity("STRING_AGG(a, ' & ')")
+        self.validate_identity("STRING_AGG(DISTINCT a, ' & ')")
+        self.validate_identity("STRING_AGG(a, ' & ' ORDER BY LENGTH(a))")
+        self.validate_identity("STRING_AGG(foo, b'|' ORDER BY bar)")
+
+        self.validate_identity("STRING_AGG(a)", "STRING_AGG(a, ',')")
+        self.validate_identity(
+            "STRING_AGG(DISTINCT a ORDER BY b DESC, c DESC LIMIT 10)",
+            "STRING_AGG(DISTINCT a, ',' ORDER BY b DESC, c DESC LIMIT 10)",
         )

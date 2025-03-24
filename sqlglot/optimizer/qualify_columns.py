@@ -55,14 +55,13 @@ def qualify_columns(
     infer_schema = schema.empty if infer_schema is None else infer_schema
     dialect = Dialect.get_or_raise(schema.dialect)
     pseudocolumns = dialect.PSEUDOCOLUMNS
-
-    snowflake_or_oracle = dialect in ("oracle", "snowflake")
+    bigquery = dialect == "bigquery"
 
     for scope in traverse_scope(expression):
         scope_expression = scope.expression
         is_select = isinstance(scope_expression, exp.Select)
 
-        if is_select and snowflake_or_oracle and scope_expression.args.get("connect"):
+        if is_select and scope_expression.args.get("connect"):
             # In Snowflake / Oracle queries that have a CONNECT BY clause, one can use the LEVEL
             # pseudocolumn, which doesn't belong to a table, so we change it into an identifier
             scope_expression.transform(
@@ -81,7 +80,7 @@ def qualify_columns(
                 scope,
                 resolver,
                 dialect,
-                expand_only_groupby=dialect.EXPAND_ALIAS_REFS_EARLY_ONLY_IN_GROUP_BY,
+                expand_only_groupby=bigquery,
             )
 
         _convert_columns_to_dots(scope, resolver)
@@ -102,9 +101,12 @@ def qualify_columns(
             qualify_outputs(scope)
 
         _expand_group_by(scope, dialect)
-        _expand_order_by(scope, resolver)
 
-        if dialect == "bigquery":
+        # DISTINCT ON and ORDER BY follow the same rules (tested in DuckDB, Postgres, ClickHouse)
+        # https://www.postgresql.org/docs/current/sql-select.html#SQL-DISTINCT
+        _expand_order_by_and_distinct_on(scope, resolver)
+
+        if bigquery:
             annotator.annotate_scope(scope)
 
     return expression
@@ -274,11 +276,13 @@ def _expand_alias_refs(
         return
 
     alias_to_expression: t.Dict[str, t.Tuple[exp.Expression, int]] = {}
+    projections = {s.alias_or_name for s in expression.selects}
 
     def replace_columns(
         node: t.Optional[exp.Expression], resolve_table: bool = False, literal_index: bool = False
     ) -> None:
         is_group_by = isinstance(node, exp.Group)
+        is_having = isinstance(node, exp.Having)
         if not node or (expand_only_groupby and not is_group_by):
             return
 
@@ -293,23 +297,29 @@ def _expand_alias_refs(
             if expand_only_groupby and is_group_by and column.parent is not node:
                 continue
 
+            skip_replace = False
             table = resolver.get_table(column.name) if resolve_table and not column.table else None
             alias_expr, i = alias_to_expression.get(column.name, (None, 1))
-            double_agg = (
-                (
-                    alias_expr.find(exp.AggFunc)
-                    and (
-                        column.find_ancestor(exp.AggFunc)
-                        and not isinstance(column.find_ancestor(exp.Window, exp.Select), exp.Window)
-                    )
-                )
-                if alias_expr
-                else False
-            )
 
-            if table and (not alias_expr or double_agg):
+            if alias_expr:
+                skip_replace = bool(
+                    alias_expr.find(exp.AggFunc)
+                    and column.find_ancestor(exp.AggFunc)
+                    and not isinstance(column.find_ancestor(exp.Window, exp.Select), exp.Window)
+                )
+
+                # BigQuery's having clause gets confused if an alias matches a source.
+                # SELECT x.a, max(x.b) as x FROM x GROUP BY 1 HAVING x > 1;
+                # If HAVING x is expanded to max(x.b), bigquery treats x as the new projection x instead of the table
+                if is_having and dialect == "bigquery":
+                    skip_replace = skip_replace or any(
+                        node.parts[0].name in projections
+                        for node in alias_expr.find_all(exp.Column)
+                    )
+
+            if table and (not alias_expr or skip_replace):
                 column.set("table", table)
-            elif not column.table and alias_expr and not double_agg:
+            elif not column.table and alias_expr and not skip_replace:
                 if isinstance(alias_expr, exp.Literal) and (literal_index or resolve_table):
                     if literal_index:
                         column.replace(exp.Literal.number(i))
@@ -359,36 +369,41 @@ def _expand_group_by(scope: Scope, dialect: DialectType) -> None:
     expression.set("group", group)
 
 
-def _expand_order_by(scope: Scope, resolver: Resolver) -> None:
-    order = scope.expression.args.get("order")
-    if not order:
-        return
+def _expand_order_by_and_distinct_on(scope: Scope, resolver: Resolver) -> None:
+    for modifier_key in ("order", "distinct"):
+        modifier = scope.expression.args.get(modifier_key)
+        if isinstance(modifier, exp.Distinct):
+            modifier = modifier.args.get("on")
 
-    ordereds = order.expressions
-    for ordered, new_expression in zip(
-        ordereds,
-        _expand_positional_references(
-            scope, (o.this for o in ordereds), resolver.schema.dialect, alias=True
-        ),
-    ):
-        for agg in ordered.find_all(exp.AggFunc):
-            for col in agg.find_all(exp.Column):
-                if not col.table:
-                    col.set("table", resolver.get_table(col.name))
+        if not isinstance(modifier, exp.Expression):
+            continue
 
-        ordered.set("this", new_expression)
+        modifier_expressions = modifier.expressions
+        if modifier_key == "order":
+            modifier_expressions = [ordered.this for ordered in modifier_expressions]
 
-    if scope.expression.args.get("group"):
-        selects = {s.this: exp.column(s.alias_or_name) for s in scope.expression.selects}
+        for original, expanded in zip(
+            modifier_expressions,
+            _expand_positional_references(
+                scope, modifier_expressions, resolver.schema.dialect, alias=True
+            ),
+        ):
+            for agg in original.find_all(exp.AggFunc):
+                for col in agg.find_all(exp.Column):
+                    if not col.table:
+                        col.set("table", resolver.get_table(col.name))
 
-        for ordered in ordereds:
-            ordered = ordered.this
+            original.replace(expanded)
 
-            ordered.replace(
-                exp.to_identifier(_select_by_pos(scope, ordered).alias)
-                if ordered.is_int
-                else selects.get(ordered, ordered)
-            )
+        if scope.expression.args.get("group"):
+            selects = {s.this: exp.column(s.alias_or_name) for s in scope.expression.selects}
+
+            for expression in modifier_expressions:
+                expression.replace(
+                    exp.to_identifier(_select_by_pos(scope, expression).alias)
+                    if expression.is_int
+                    else selects.get(expression, expression)
+                )
 
 
 def _expand_positional_references(

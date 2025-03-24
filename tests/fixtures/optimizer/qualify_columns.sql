@@ -269,6 +269,10 @@ SELECT g.generate_series AS generate_series FROM generate_series(0, 10) AS g(gen
 SELECT * FROM quarterly_sales PIVOT(SUM(amount) FOR quarter IN (ANY ORDER BY quarter)) ORDER BY empid;
 SELECT * FROM QUARTERLY_SALES AS QUARTERLY_SALES PIVOT(SUM(QUARTERLY_SALES.AMOUNT) FOR QUARTERLY_SALES.QUARTER IN (ANY ORDER BY QUARTER)) AS _Q_0 ORDER BY _Q_0.EMPID;
 
+# execute: false
+SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY x) AS x FROM t;
+SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY t.x) AS x FROM t AS t;
+
 --------------------------------------
 -- Derived tables
 --------------------------------------
@@ -761,6 +765,10 @@ WITH RECURSIVE t(c) AS (SELECT 1 AS c UNION ALL SELECT t.c + 1 AS c FROM t AS t 
 # execute: false
 WITH RECURSIVE t AS (SELECT 1 AS c UNION ALL SELECT c + 1 AS c FROM t WHERE c <= 10) SELECT c FROM t;
 WITH RECURSIVE t AS (SELECT 1 AS c UNION ALL SELECT t.c + 1 AS c FROM t AS t WHERE t.c <= 10) SELECT t.c AS c FROM t AS t;
+
+# title: expand DISTINCT ON ordinals / projection names
+SELECT DISTINCT ON (new_col, b + 1, 1) t1.a AS new_col FROM x AS t1 ORDER BY new_col;
+SELECT DISTINCT ON (new_col, t1.b + 1, new_col) t1.a AS new_col FROM x AS t1 ORDER BY new_col;
 
 --------------------------------------
 -- Wrapped tables / join constructs

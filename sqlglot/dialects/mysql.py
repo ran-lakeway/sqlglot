@@ -192,6 +192,7 @@ class MySQL(Dialect):
             "CHARSET": TokenType.CHARACTER_SET,
             # The DESCRIBE and EXPLAIN statements are synonyms.
             # https://dev.mysql.com/doc/refman/8.4/en/explain.html
+            "BLOB": TokenType.BLOB,
             "EXPLAIN": TokenType.DESCRIBE,
             "FORCE": TokenType.FORCE,
             "IGNORE": TokenType.IGNORE,
@@ -437,6 +438,11 @@ class MySQL(Dialect):
         ALTER_PARSERS = {
             **parser.Parser.ALTER_PARSERS,
             "MODIFY": lambda self: self._parse_alter_table_alter(),
+        }
+
+        ALTER_ALTER_PARSERS = {
+            **parser.Parser.ALTER_ALTER_PARSERS,
+            "INDEX": lambda self: self._parse_alter_table_alter_index(),
         }
 
         SCHEMA_UNNAMED_CONSTRAINTS = {
@@ -693,6 +699,18 @@ class MySQL(Dialect):
                 on_condition=self._parse_on_condition(),
             )
 
+        def _parse_alter_table_alter_index(self) -> exp.AlterIndex:
+            index = self._parse_field(any_token=True)
+
+            if self._match_text_seq("VISIBLE"):
+                visible = True
+            elif self._match_text_seq("INVISIBLE"):
+                visible = False
+            else:
+                visible = None
+
+            return self.expression(exp.AlterIndex, this=index, visible=visible)
+
     class Generator(generator.Generator):
         INTERVAL_ALLOWS_PLURAL_FORM = False
         LOCKING_READS_SUPPORTED = True
@@ -813,6 +831,7 @@ class MySQL(Dialect):
         TYPE_MAPPING.pop(exp.DataType.Type.MEDIUMTEXT)
         TYPE_MAPPING.pop(exp.DataType.Type.LONGTEXT)
         TYPE_MAPPING.pop(exp.DataType.Type.TINYTEXT)
+        TYPE_MAPPING.pop(exp.DataType.Type.BLOB)
         TYPE_MAPPING.pop(exp.DataType.Type.MEDIUMBLOB)
         TYPE_MAPPING.pop(exp.DataType.Type.LONGBLOB)
         TYPE_MAPPING.pop(exp.DataType.Type.TINYBLOB)

@@ -27,6 +27,7 @@ from sqlglot.dialects.dialect import (
     ts_or_ds_add_cast,
     unit_to_var,
     strposition_sql,
+    groupconcat_sql,
 )
 from sqlglot.helper import seq_get, split_num_words
 from sqlglot.tokens import TokenType
@@ -312,7 +313,11 @@ def _build_levenshtein(args: t.List) -> exp.Levenshtein:
 
 def _build_format_time(expr_type: t.Type[exp.Expression]) -> t.Callable[[t.List], exp.TimeToStr]:
     def _builder(args: t.List) -> exp.TimeToStr:
-        return exp.TimeToStr(this=expr_type(this=seq_get(args, 1)), format=seq_get(args, 0))
+        return exp.TimeToStr(
+            this=expr_type(this=seq_get(args, 1)),
+            format=seq_get(args, 0),
+            zone=seq_get(args, 2),
+        )
 
     return _builder
 
@@ -354,7 +359,6 @@ class BigQuery(Dialect):
     LOG_BASE_FIRST = False
     HEX_LOWERCASE = True
     FORCE_EARLY_ALIAS_REF_EXPANSION = True
-    EXPAND_ALIAS_REFS_EARLY_ONLY_IN_GROUP_BY = True
     PRESERVE_ORIGINAL_NAMES = True
     HEX_STRING_IS_INTEGER_TYPE = True
 
@@ -902,7 +906,9 @@ class BigQuery(Dialect):
                 "DATETIME", self.func("TIMESTAMP", e.this, e.args.get("zone")), "'UTC'"
             ),
             exp.GenerateSeries: rename_func("GENERATE_ARRAY"),
-            exp.GroupConcat: rename_func("STRING_AGG"),
+            exp.GroupConcat: lambda self, e: groupconcat_sql(
+                self, e, func_name="STRING_AGG", within_group=False
+            ),
             exp.Hex: lambda self, e: self.func("UPPER", self.func("TO_HEX", self.sql(e, "this"))),
             exp.HexString: lambda self, e: self.hexstring_sql(e, binary_function_repr="FROM_HEX"),
             exp.If: if_sql(false_value="NULL"),
@@ -935,7 +941,7 @@ class BigQuery(Dialect):
             exp.Rollback: lambda *_: "ROLLBACK TRANSACTION",
             exp.Select: transforms.preprocess(
                 [
-                    transforms.explode_to_unnest(),
+                    transforms.explode_projection_to_unnest(),
                     transforms.unqualify_unnest,
                     transforms.eliminate_distinct_on,
                     _alias_ordered_group,
@@ -989,6 +995,7 @@ class BigQuery(Dialect):
             exp.DataType.Type.BIGDECIMAL: "BIGNUMERIC",
             exp.DataType.Type.BIGINT: "INT64",
             exp.DataType.Type.BINARY: "BYTES",
+            exp.DataType.Type.BLOB: "BYTES",
             exp.DataType.Type.BOOLEAN: "BOOL",
             exp.DataType.Type.CHAR: "STRING",
             exp.DataType.Type.DECIMAL: "NUMERIC",
@@ -1171,7 +1178,9 @@ class BigQuery(Dialect):
                 if isinstance(this, (exp.TsOrDsToDatetime, exp.TsOrDsToTimestamp, exp.TsOrDsToDate))
                 else expression
             )
-            return self.func(func_name, self.format_time(expression), time_expr.this)
+            return self.func(
+                func_name, self.format_time(expression), time_expr.this, expression.args.get("zone")
+            )
 
         def eq_sql(self, expression: exp.EQ) -> str:
             # Operands of = cannot be NULL in BigQuery

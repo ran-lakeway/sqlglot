@@ -73,16 +73,14 @@ def _add_date_sql(self: Hive.Generator, expression: DATE_ADD_OR_SUB) -> str:
     if isinstance(expression, exp.DateSub):
         multiplier *= -1
 
-    if expression.expression.is_number:
-        modified_increment = exp.Literal.number(expression.expression.to_py() * multiplier)
-    else:
-        modified_increment = expression.expression
-        if multiplier != 1:
-            modified_increment = exp.Mul(  # type: ignore
-                this=modified_increment, expression=exp.Literal.number(multiplier)
-            )
+    increment = expression.expression
+    if isinstance(increment, exp.Literal):
+        value = increment.to_py() if increment.is_number else int(increment.name)
+        increment = exp.Literal.number(value * multiplier)
+    elif multiplier != 1:
+        increment *= exp.Literal.number(multiplier)
 
-    return self.func(func, expression.this, modified_increment)
+    return self.func(func, expression.this, increment)
 
 
 def _date_diff_sql(self: Hive.Generator, expression: exp.DateDiff | exp.TsOrDsDiff) -> str:
@@ -233,6 +231,8 @@ class Hive(Dialect):
         "EE": "%a",
         "EEE": "%a",
         "EEEE": "%A",
+        "z": "%Z",
+        "Z": "%z",
     }
 
     DATE_FORMAT = "'yyyy-MM-dd'"
@@ -444,6 +444,9 @@ class Hive(Dialect):
             return self.expression(exp.Parameter, this=this, expression=expression)
 
         def _to_prop_eq(self, expression: exp.Expression, index: int) -> exp.Expression:
+            if expression.is_star:
+                return expression
+
             if isinstance(expression, exp.Column):
                 key = expression.this
             else:
@@ -464,7 +467,7 @@ class Hive(Dialect):
         JSON_PATH_SINGLE_QUOTE_ESCAPE = True
         SUPPORTS_TO_NUMBER = False
         WITH_PROPERTIES_PREFIX = "TBLPROPERTIES"
-        PARSE_JSON_NAME = None
+        PARSE_JSON_NAME: t.Optional[str] = None
         PAD_FILL_PATTERN_IS_REQUIRED = True
         SUPPORTS_MEDIAN = False
         ARRAY_SIZE_NAME = "SIZE"
@@ -486,6 +489,7 @@ class Hive(Dialect):
         TYPE_MAPPING = {
             **generator.Generator.TYPE_MAPPING,
             exp.DataType.Type.BIT: "BOOLEAN",
+            exp.DataType.Type.BLOB: "BINARY",
             exp.DataType.Type.DATETIME: "TIMESTAMP",
             exp.DataType.Type.ROWVERSION: "BINARY",
             exp.DataType.Type.TEXT: "STRING",
@@ -517,6 +521,7 @@ class Hive(Dialect):
             e: f"TO_DATE(CAST({self.sql(e, 'this')} AS STRING), {Hive.DATEINT_FORMAT})",
             exp.FileFormatProperty: lambda self,
             e: f"STORED AS {self.sql(e, 'this') if isinstance(e.this, exp.InputOutputFormat) else e.name.upper()}",
+            exp.StorageHandlerProperty: lambda self, e: f"STORED BY {self.sql(e, 'this')}",
             exp.FromBase64: rename_func("UNBASE64"),
             exp.GenerateSeries: sequence_sql,
             exp.GenerateDateArray: sequence_sql,
@@ -573,6 +578,7 @@ class Hive(Dialect):
             exp.StrToTime: _str_to_time_sql,
             exp.StrToUnix: _str_to_unix_sql,
             exp.StructExtract: struct_extract_sql,
+            exp.StarMap: rename_func("MAP"),
             exp.Table: transforms.preprocess([transforms.unnest_generate_series]),
             exp.TimeStrToDate: rename_func("TO_DATE"),
             exp.TimeStrToTime: timestrtotime_sql,

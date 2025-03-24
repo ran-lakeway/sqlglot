@@ -52,7 +52,6 @@ class TestSnowflake(Validator):
         self.validate_identity("SELECT OBJECT_CONSTRUCT()")
         self.validate_identity("SELECT DAYOFMONTH(CURRENT_TIMESTAMP())")
         self.validate_identity("SELECT DAYOFYEAR(CURRENT_TIMESTAMP())")
-        self.validate_identity("LISTAGG(data['some_field'], ',')")
         self.validate_identity("WEEKOFYEAR(tstamp)")
         self.validate_identity("SELECT QUARTER(CURRENT_TIMESTAMP())")
         self.validate_identity("SELECT SUM(amount) FROM mytable GROUP BY ALL")
@@ -106,6 +105,10 @@ class TestSnowflake(Validator):
         )
         self.validate_identity(
             """SELECT TO_TIMESTAMP('2025-01-16T14:45:30.123+0500', 'yyyy-mm-DD"T"hh24:mi:ss.ff3TZHTZM')"""
+        )
+        self.validate_identity(
+            "SELECT 1 put",
+            "SELECT 1 AS put",
         )
         self.validate_identity(
             "WITH t (SELECT 1 AS c) SELECT c FROM t",
@@ -296,6 +299,27 @@ class TestSnowflake(Validator):
             "SELECT * RENAME (a AS b), c AS d FROM xxx",
         )
 
+        # Support for optional trailing commas after tables in from clause
+        self.validate_identity(
+            "SELECT * FROM xxx, yyy, zzz,",
+            "SELECT * FROM xxx, yyy, zzz",
+        )
+        self.validate_identity(
+            "SELECT * FROM xxx, yyy, zzz, WHERE foo = bar",
+            "SELECT * FROM xxx, yyy, zzz WHERE foo = bar",
+        )
+        self.validate_identity(
+            "SELECT * FROM xxx, yyy, zzz",
+            "SELECT * FROM xxx, yyy, zzz",
+        )
+
+        self.validate_all(
+            "CREATE TABLE test_table (id NUMERIC NOT NULL AUTOINCREMENT)",
+            write={
+                "duckdb": "CREATE TABLE test_table (id DECIMAL(38, 0) NOT NULL)",
+                "snowflake": "CREATE TABLE test_table (id DECIMAL(38, 0) NOT NULL AUTOINCREMENT)",
+            },
+        )
         self.validate_all(
             "SELECT TO_TIMESTAMP('2025-01-16 14:45:30.123', 'yyyy-mm-DD hh24:mi:ss.ff6')",
             write={
@@ -370,7 +394,7 @@ class TestSnowflake(Validator):
             """SELECT PARSE_JSON('{"fruit":"banana"}'):fruit""",
             write={
                 "bigquery": """SELECT JSON_EXTRACT(PARSE_JSON('{"fruit":"banana"}'), '$.fruit')""",
-                "databricks": """SELECT '{"fruit":"banana"}':fruit""",
+                "databricks": """SELECT PARSE_JSON('{"fruit":"banana"}'):fruit""",
                 "duckdb": """SELECT JSON('{"fruit":"banana"}') -> '$.fruit'""",
                 "mysql": """SELECT JSON_EXTRACT('{"fruit":"banana"}', '$.fruit')""",
                 "presto": """SELECT JSON_EXTRACT(JSON_PARSE('{"fruit":"banana"}'), '$.fruit')""",
@@ -562,6 +586,16 @@ class TestSnowflake(Validator):
                 "postgres": "TO_CHAR(x, y)",
                 "snowflake": "TO_CHAR(x, y)",
                 "teradata": "TO_CHAR(x, y)",
+            },
+        )
+        self.validate_identity(
+            "TO_CHAR(foo::DATE, 'yyyy')", "TO_CHAR(CAST(CAST(foo AS DATE) AS TIMESTAMP), 'yyyy')"
+        )
+        self.validate_all(
+            "TO_CHAR(foo::TIMESTAMP, 'YYYY-MM')",
+            write={
+                "snowflake": "TO_CHAR(CAST(foo AS TIMESTAMP), 'yyyy-mm')",
+                "duckdb": "STRFTIME(CAST(foo AS TIMESTAMP), '%Y-%m')",
             },
         )
         self.validate_all(
@@ -853,13 +887,6 @@ class TestSnowflake(Validator):
             },
         )
         self.validate_all(
-            "SELECT LISTAGG(col1, ', ') WITHIN GROUP (ORDER BY col2) FROM t",
-            write={
-                "duckdb": "SELECT GROUP_CONCAT(col1, ', ' ORDER BY col2) FROM t",
-                "snowflake": "SELECT LISTAGG(col1, ', ') WITHIN GROUP (ORDER BY col2) FROM t",
-            },
-        )
-        self.validate_all(
             "SELECT APPROX_PERCENTILE(a, 0.5) FROM t",
             read={
                 "trino": "SELECT APPROX_PERCENTILE(a, 1, 0.5, 0.001) FROM t",
@@ -980,6 +1007,15 @@ class TestSnowflake(Validator):
         self.validate_identity("SELECT BIT_SHIFTRIGHT(a, 1)", "SELECT BITSHIFTRIGHT(a, 1)")
 
         self.validate_identity("CREATE TABLE t (id INT PRIMARY KEY AUTOINCREMENT)")
+
+        self.validate_all(
+            "SELECT HEX_DECODE_BINARY('65')",
+            write={
+                "bigquery": "SELECT FROM_HEX('65')",
+                "duckdb": "SELECT UNHEX('65')",
+                "snowflake": "SELECT HEX_DECODE_BINARY('65')",
+            },
+        )
 
     def test_null_treatment(self):
         self.validate_all(
@@ -1427,6 +1463,7 @@ class TestSnowflake(Validator):
                     "CREATE TABLE t (id INT TAG (key1='value_1', key2='value_2'))",
                 )
 
+        self.validate_identity("CREATE OR REPLACE TABLE foo COPY GRANTS USING TEMPLATE (SELECT 1)")
         self.validate_identity("USE SECONDARY ROLES ALL")
         self.validate_identity("USE SECONDARY ROLES NONE")
         self.validate_identity("USE SECONDARY ROLES a, b, c")
@@ -1591,44 +1628,21 @@ class TestSnowflake(Validator):
             "CREATE PROCEDURE a.b.c(x INT, y VARIANT) RETURNS OBJECT EXECUTE AS CALLER AS 'BEGIN SELECT 1; END;'"
         )
 
-    def test_table_literal(self):
-        # All examples from https://docs.snowflake.com/en/sql-reference/literals-table.html
-        self.validate_all(
-            r"""SELECT * FROM TABLE('MYTABLE')""",
-            write={"snowflake": r"""SELECT * FROM TABLE('MYTABLE')"""},
-        )
-
-        self.validate_all(
-            r"""SELECT * FROM TABLE('MYDB."MYSCHEMA"."MYTABLE"')""",
-            write={"snowflake": r"""SELECT * FROM TABLE('MYDB."MYSCHEMA"."MYTABLE"')"""},
-        )
-
-        # Per Snowflake documentation at https://docs.snowflake.com/en/sql-reference/literals-table.html
-        # one can use either a  " ' " or " $$ " to enclose the object identifier.
-        # Capturing the single tokens seems like lot of work. Hence adjusting tests to use these interchangeably,
-        self.validate_all(
-            r"""SELECT * FROM TABLE($$MYDB. "MYSCHEMA"."MYTABLE"$$)""",
-            write={"snowflake": r"""SELECT * FROM TABLE('MYDB. "MYSCHEMA"."MYTABLE"')"""},
-        )
-
-        self.validate_all(
-            r"""SELECT * FROM TABLE($MYVAR)""",
-            write={"snowflake": r"""SELECT * FROM TABLE($MYVAR)"""},
-        )
-
-        self.validate_all(
-            r"""SELECT * FROM TABLE(?)""",
-            write={"snowflake": r"""SELECT * FROM TABLE(?)"""},
-        )
-
-        self.validate_all(
-            r"""SELECT * FROM TABLE(:BINDING)""",
-            write={"snowflake": r"""SELECT * FROM TABLE(:BINDING)"""},
-        )
-
-        self.validate_all(
-            r"""SELECT * FROM TABLE($MYVAR) WHERE COL1 = 10""",
-            write={"snowflake": r"""SELECT * FROM TABLE($MYVAR) WHERE COL1 = 10"""},
+    def test_table_function(self):
+        self.validate_identity("SELECT * FROM TABLE('MYTABLE')")
+        self.validate_identity("SELECT * FROM TABLE($MYVAR)")
+        self.validate_identity("SELECT * FROM TABLE(?)")
+        self.validate_identity("SELECT * FROM TABLE(:BINDING)")
+        self.validate_identity("SELECT * FROM TABLE($MYVAR) WHERE COL1 = 10")
+        self.validate_identity("SELECT * FROM TABLE('t1') AS f")
+        self.validate_identity("SELECT * FROM (TABLE('t1') CROSS JOIN TABLE('t2'))")
+        self.validate_identity("SELECT * FROM TABLE('t1'), LATERAL (SELECT * FROM t2)")
+        self.validate_identity("SELECT * FROM TABLE('t1') UNION ALL SELECT * FROM TABLE('t2')")
+        self.validate_identity("SELECT * FROM TABLE('t1') TABLESAMPLE BERNOULLI (20.3)")
+        self.validate_identity("""SELECT * FROM TABLE('MYDB."MYSCHEMA"."MYTABLE"')""")
+        self.validate_identity(
+            'SELECT * FROM TABLE($$MYDB. "MYSCHEMA"."MYTABLE"$$)',
+            """SELECT * FROM TABLE('MYDB. "MYSCHEMA"."MYTABLE"')""",
         )
 
     def test_flatten(self):
@@ -2065,6 +2079,40 @@ MATCH_RECOGNIZE (
         self.validate_identity("SHOW TERSE USERS")
         self.validate_identity("SHOW USERS LIKE '_foo%' STARTS WITH 'bar' LIMIT 5 FROM 'baz'")
 
+    def test_show_databases(self):
+        self.validate_identity("SHOW TERSE DATABASES")
+        self.validate_identity(
+            "SHOW TERSE DATABASES HISTORY LIKE 'foo' STARTS WITH 'bla' LIMIT 5 FROM 'bob' WITH PRIVILEGES USAGE, MODIFY"
+        )
+
+        ast = parse_one("SHOW DATABASES IN ACCOUNT", read="snowflake")
+        self.assertEqual(ast.this, "DATABASES")
+        self.assertEqual(ast.args.get("scope_kind"), "ACCOUNT")
+
+    def test_show_functions(self):
+        self.validate_identity("SHOW FUNCTIONS")
+        self.validate_identity("SHOW FUNCTIONS LIKE 'foo' IN CLASS bla")
+
+        ast = parse_one("SHOW FUNCTIONS IN ACCOUNT", read="snowflake")
+        self.assertEqual(ast.this, "FUNCTIONS")
+        self.assertEqual(ast.args.get("scope_kind"), "ACCOUNT")
+
+    def test_show_procedures(self):
+        self.validate_identity("SHOW PROCEDURES")
+        self.validate_identity("SHOW PROCEDURES LIKE 'foo' IN APPLICATION app")
+        self.validate_identity("SHOW PROCEDURES LIKE 'foo' IN APPLICATION PACKAGE pkg")
+
+        ast = parse_one("SHOW PROCEDURES IN ACCOUNT", read="snowflake")
+        self.assertEqual(ast.this, "PROCEDURES")
+        self.assertEqual(ast.args.get("scope_kind"), "ACCOUNT")
+
+    def test_show_warehouses(self):
+        self.validate_identity("SHOW WAREHOUSES")
+        self.validate_identity("SHOW WAREHOUSES LIKE 'foo' WITH PRIVILEGES USAGE, MODIFY")
+
+        ast = parse_one("SHOW WAREHOUSES", read="snowflake")
+        self.assertEqual(ast.this, "WAREHOUSES")
+
     def test_show_schemas(self):
         self.validate_identity(
             "show terse schemas in database db1 starts with 'a' limit 10 from 'b'",
@@ -2279,6 +2327,9 @@ STORAGE_ALLOWED_LOCATIONS=('s3://mybucket1/path1/', 's3://mybucket2/path2/')""",
         self.validate_identity(
             """COPY INTO @my_stage/result/data FROM (SELECT * FROM orderstiny) FILE_FORMAT = (TYPE='csv')"""
         )
+        self.validate_identity(
+            """COPY INTO MY_DATABASE.MY_SCHEMA.MY_TABLE FROM @MY_DATABASE.MY_SCHEMA.MY_STAGE/my_path FILE_FORMAT = (FORMAT_NAME=MY_DATABASE.MY_SCHEMA.MY_FILE_FORMAT)"""
+        )
         self.validate_all(
             """COPY INTO 's3://example/data.csv'
     FROM EXTRA.EXAMPLE.TABLE
@@ -2333,6 +2384,43 @@ SINGLE = TRUE""",
         self.assertEqual(
             quote_identifiers(copy_ast, dialect="snowflake").sql(dialect="snowflake"),
             """COPY INTO 's3://example/contacts.csv' FROM "db"."tbl" STORAGE_INTEGRATION = "PROD_S3_SIDETRADE_INTEGRATION" FILE_FORMAT = (FORMAT_NAME="my_csv_format" TYPE=CSV COMPRESSION=NONE NULL_IF=('') FIELD_OPTIONALLY_ENCLOSED_BY='"') MATCH_BY_COLUMN_NAME = CASE_SENSITIVE OVERWRITE = TRUE SINGLE = TRUE INCLUDE_METADATA = ("col1" = "METADATA$START_SCAN_TIME")""",
+        )
+
+    def test_put_to_stage(self):
+        # PUT with file path and stage ref containing spaces (wrapped in single quotes)
+        ast = parse_one("PUT 'file://my file.txt' '@s1/my folder'", read="snowflake")
+        self.assertIsInstance(ast, exp.Put)
+        self.assertEqual(ast.this, exp.Literal(this="file://my file.txt", is_string=True))
+        self.assertEqual(ast.args["target"], exp.Var(this="@s1/my folder"))
+
+        # expression with additional properties
+        ast = parse_one(
+            "PUT 'file:///tmp/my.txt' @stage1/folder PARALLEL = 1 AUTO_COMPRESS=false source_compression=gzip OVERWRITE=TRUE",
+            read="snowflake",
+        )
+        self.assertIsInstance(ast, exp.Put)
+        self.assertEqual(ast.this, exp.Literal(this="file:///tmp/my.txt", is_string=True))
+        self.assertEqual(ast.args["target"], exp.Var(this="@stage1/folder"))
+        properties = ast.args.get("properties")
+        props_dict = {prop.this.this: prop.args["value"].this for prop in properties.expressions}
+        self.assertEqual(
+            props_dict,
+            {
+                "PARALLEL": "1",
+                "AUTO_COMPRESS": False,
+                "source_compression": "gzip",
+                "OVERWRITE": True,
+            },
+        )
+
+        # validate identity for different args and properties
+        self.validate_identity("PUT 'file:///dir/tmp.csv' @s1/test")
+
+        # the unquoted URI variant is not fully supported yet
+        self.validate_identity("PUT file:///dir/tmp.csv @%table", check_command_warning=True)
+        self.validate_identity(
+            "PUT file:///dir/tmp.csv @s1/test PARALLEL=1 AUTO_COMPRESS=FALSE source_compression=gzip OVERWRITE=TRUE",
+            check_command_warning=True,
         )
 
     def test_querying_semi_structured_data(self):
@@ -2416,3 +2504,20 @@ SINGLE = TRUE""",
                 "trino": "SELECT 1 ORDER BY 1 OFFSET 0",
             },
         )
+
+    def test_listagg(self):
+        self.validate_identity("LISTAGG(data['some_field'], ',')")
+
+        for distinct in ("", "DISTINCT "):
+            self.validate_all(
+                f"SELECT LISTAGG({distinct}col, '|SEPARATOR|') WITHIN GROUP (ORDER BY col2) FROM t",
+                read={
+                    "trino": f"SELECT LISTAGG({distinct}col, '|SEPARATOR|') WITHIN GROUP (ORDER BY col2) FROM t",
+                    "duckdb": f"SELECT LISTAGG({distinct}col, '|SEPARATOR|' ORDER BY col2) FROM t",
+                },
+                write={
+                    "snowflake": f"SELECT LISTAGG({distinct}col, '|SEPARATOR|') WITHIN GROUP (ORDER BY col2) FROM t",
+                    "trino": f"SELECT LISTAGG({distinct}col, '|SEPARATOR|') WITHIN GROUP (ORDER BY col2) FROM t",
+                    "duckdb": f"SELECT LISTAGG({distinct}col, '|SEPARATOR|' ORDER BY col2) FROM t",
+                },
+            )

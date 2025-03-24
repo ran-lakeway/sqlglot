@@ -37,6 +37,7 @@ class TokenType(AutoName):
     DASH = auto()
     PLUS = auto()
     COLON = auto()
+    DOTCOLON = auto()
     DCOLON = auto()
     DQMARK = auto()
     SEMICOLON = auto()
@@ -78,6 +79,8 @@ class TokenType(AutoName):
     DAMP = auto()
     XOR = auto()
     DSTAR = auto()
+
+    URI_START = auto()
 
     BLOCK_START = auto()
     BLOCK_END = auto()
@@ -139,6 +142,7 @@ class TokenType(AutoName):
     TEXT = auto()
     MEDIUMTEXT = auto()
     LONGTEXT = auto()
+    BLOB = auto()
     MEDIUMBLOB = auto()
     LONGBLOB = auto()
     TINYBLOB = auto()
@@ -354,6 +358,7 @@ class TokenType(AutoName):
     PROCEDURE = auto()
     PROPERTIES = auto()
     PSEUDO_TYPE = auto()
+    PUT = auto()
     QUALIFY = auto()
     QUOTE = auto()
     RANGE = auto()

@@ -173,6 +173,7 @@ class TestHive(Validator):
         self.validate_identity(
             """CREATE EXTERNAL TABLE `my_table` (`a7` ARRAY<DATE>) ROW FORMAT SERDE 'a' STORED AS INPUTFORMAT 'b' OUTPUTFORMAT 'c' LOCATION 'd' TBLPROPERTIES ('e'='f')"""
         )
+        self.validate_identity("CREATE EXTERNAL TABLE X (y INT) STORED BY 'x'")
         self.validate_identity("ALTER VIEW v1 AS SELECT x, UPPER(s) AS s FROM t2")
         self.validate_identity("ALTER VIEW v1 (c1, c2) AS SELECT x, UPPER(s) AS s FROM t2")
         self.validate_identity(
@@ -808,6 +809,21 @@ class TestHive(Validator):
         )
 
         self.validate_identity("SELECT 1_2")
+
+        self.validate_all(
+            "SELECT MAP(*), STRUCT(*) FROM t",
+            read={
+                "hive": "SELECT MAP(*), STRUCT(*) FROM t",
+                "spark2": "SELECT MAP(*), STRUCT(*) FROM t",
+                "spark": "SELECT MAP(*), STRUCT(*) FROM t",
+                "databricks": "SELECT MAP(*), STRUCT(*) FROM t",
+            },
+            write={
+                "spark2": "SELECT MAP(*), STRUCT(*) FROM t",
+                "spark": "SELECT MAP(*), STRUCT(*) FROM t",
+                "databricks": "SELECT MAP(*), STRUCT(*) FROM t",
+            },
+        )
 
     def test_escapes(self) -> None:
         self.validate_identity("'\n'", "'\\n'")

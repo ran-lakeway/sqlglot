@@ -11,6 +11,7 @@ SQL expressions, such as `sqlglot.expressions.select`.
 """
 
 from __future__ import annotations
+
 import datetime
 import math
 import numbers
@@ -37,6 +38,7 @@ from sqlglot.tokens import Token, TokenError
 
 if t.TYPE_CHECKING:
     from typing_extensions import Self
+
     from sqlglot._typing import E, Lit
     from sqlglot.dialects.dialect import DialectType
 
@@ -410,8 +412,7 @@ class Expression(metaclass=_Expression):
 
     def iter_expressions(self, reverse: bool = False) -> t.Iterator[Expression]:
         """Yields the key and expression for all arguments, exploding list args."""
-        # remove tuple when python 3.7 is deprecated
-        for vs in reversed(tuple(self.args.values())) if reverse else self.args.values():  # type: ignore
+        for vs in reversed(self.args.values()) if reverse else self.args.values():  # type: ignore
             if type(vs) is list:
                 for v in reversed(vs) if reverse else vs:  # type: ignore
                     if hasattr(v, "parent"):
@@ -1557,6 +1558,7 @@ class Show(Expression):
         "log": False,
         "position": False,
         "types": False,
+        "privileges": False,
     }
 
 
@@ -1702,7 +1704,13 @@ class AlterColumn(Expression):
         "drop": False,
         "comment": False,
         "allow_null": False,
+        "visible": False,
     }
+
+
+# https://dev.mysql.com/doc/refman/8.0/en/invisible-indexes.html
+class AlterIndex(Expression):
+    arg_types = {"this": True, "visible": True}
 
 
 # https://docs.aws.amazon.com/redshift/latest/dg/r_ALTER_TABLE.html
@@ -2356,8 +2364,7 @@ class Fetch(Expression):
     arg_types = {
         "direction": False,
         "count": False,
-        "percent": False,
-        "with_ties": False,
+        "limit_options": False,
     }
 
 
@@ -2399,7 +2406,21 @@ class Lambda(Expression):
 
 
 class Limit(Expression):
-    arg_types = {"this": False, "expression": True, "offset": False, "expressions": False}
+    arg_types = {
+        "this": False,
+        "expression": True,
+        "offset": False,
+        "limit_options": False,
+        "expressions": False,
+    }
+
+
+class LimitOptions(Expression):
+    arg_types = {
+        "percent": False,
+        "rows": False,
+        "with_ties": False,
+    }
 
 
 class Literal(Condition):
@@ -2563,6 +2584,18 @@ class Lateral(UDTF):
         "outer": False,
         "alias": False,
         "cross_apply": False,  # True -> CROSS APPLY, False -> OUTER APPLY
+    }
+
+
+# https://docs.snowflake.com/sql-reference/literals-table
+# https://docs.snowflake.com/en/sql-reference/functions-table#using-a-table-function
+class TableFromRows(UDTF):
+    arg_types = {
+        "this": True,
+        "alias": False,
+        "joins": False,
+        "pivots": False,
+        "sample": False,
     }
 
 
@@ -3005,6 +3038,10 @@ class StabilityProperty(Property):
     arg_types = {"this": True}
 
 
+class StorageHandlerProperty(Property):
+    arg_types = {"this": True}
+
+
 class TemporaryProperty(Property):
     arg_types = {"this": False}
 
@@ -3028,6 +3065,11 @@ class TransientProperty(Property):
 
 class UnloggedProperty(Property):
     arg_types = {}
+
+
+# https://docs.snowflake.com/en/sql-reference/sql/create-table#create-table-using-template
+class UsingTemplateProperty(Property):
+    arg_types = {"this": True}
 
 
 # https://learn.microsoft.com/en-us/sql/t-sql/statements/create-view-transact-sql?view=sql-server-ver16
@@ -3071,6 +3113,10 @@ class EncodeProperty(Property):
 
 class IncludeProperty(Property):
     arg_types = {"this": True, "alias": False, "column_def": False}
+
+
+class ForceProperty(Property):
+    arg_types = {}
 
 
 class Properties(Expression):
@@ -3229,6 +3275,11 @@ class IndexTableHint(Expression):
 # https://docs.snowflake.com/en/sql-reference/constructs/at-before
 class HistoricalData(Expression):
     arg_types = {"this": True, "kind": True, "expression": True}
+
+
+# https://docs.snowflake.com/en/sql-reference/sql/put
+class Put(Expression):
+    arg_types = {"this": True, "target": True, "properties": False}
 
 
 class Table(Expression):
@@ -4381,6 +4432,7 @@ class DataType(Expression):
         BIGSERIAL = auto()
         BINARY = auto()
         BIT = auto()
+        BLOB = auto()
         BOOLEAN = auto()
         BPCHAR = auto()
         CHAR = auto()
@@ -4830,14 +4882,6 @@ class Add(Binary):
 
 
 class Connector(Binary):
-    pass
-
-
-class And(Connector):
-    pass
-
-
-class Or(Connector):
     pass
 
 
@@ -5564,6 +5608,11 @@ class TryCast(Cast):
     pass
 
 
+# https://clickhouse.com/docs/sql-reference/data-types/newjson#reading-json-paths-as-sub-columns
+class JSONCast(Cast):
+    pass
+
+
 class Try(Func):
     pass
 
@@ -5965,6 +6014,14 @@ class LowerHex(Hex):
     pass
 
 
+class And(Connector, Func):
+    pass
+
+
+class Or(Connector, Func):
+    pass
+
+
 class Xor(Connector, Func):
     arg_types = {"this": False, "expression": False, "expressions": False}
 
@@ -6187,6 +6244,7 @@ class JSONExtract(Binary, Func):
         "json_query": False,
         "option": False,
         "quote": False,
+        "on_condition": False,
     }
     _sql_names = ["JSON_EXTRACT"]
     is_var_len_args = True
@@ -6959,7 +7017,7 @@ def maybe_copy(instance, copy=True):
     return instance.copy() if copy and instance else instance
 
 
-def _to_s(node: t.Any, verbose: bool = False, level: int = 0) -> str:
+def _to_s(node: t.Any, verbose: bool = False, level: int = 0, repr_str: bool = False) -> str:
     """Generate a textual representation of an Expression tree"""
     indent = "\n" + ("  " * (level + 1))
     delim = f",{indent}"
@@ -6980,13 +7038,20 @@ def _to_s(node: t.Any, verbose: bool = False, level: int = 0) -> str:
             indent = ""
             delim = ", "
 
-        items = delim.join([f"{k}={_to_s(v, verbose, level + 1)}" for k, v in args.items()])
+        repr_str = node.is_string or (isinstance(node, Identifier) and node.quoted)
+        items = delim.join(
+            [f"{k}={_to_s(v, verbose, level + 1, repr_str=repr_str)}" for k, v in args.items()]
+        )
         return f"{node.__class__.__name__}({indent}{items})"
 
     if isinstance(node, list):
         items = delim.join(_to_s(i, verbose, level + 1) for i in node)
         items = f"{indent}{items}" if items else ""
         return f"[{items}]"
+
+    # We use the representation of the string to avoid stripping out important whitespace
+    if repr_str and isinstance(node, str):
+        node = repr(node)
 
     # Indent multiline strings to match the current level
     return indent.join(textwrap.dedent(str(node).strip("\n")).splitlines())
@@ -8455,7 +8520,7 @@ def replace_placeholders(expression: Expression, *args, **kwargs) -> Expression:
 
 def expand(
     expression: Expression,
-    sources: t.Dict[str, Query],
+    sources: t.Dict[str, Query | t.Callable[[], Query]],
     dialect: DialectType = None,
     copy: bool = True,
 ) -> Expression:
@@ -8471,23 +8536,29 @@ def expand(
 
     Args:
         expression: The expression to expand.
-        sources: A dictionary of name to Queries.
-        dialect: The dialect of the sources dict.
+        sources: A dict of name to query or a callable that provides a query on demand.
+        dialect: The dialect of the sources dict or the callable.
         copy: Whether to copy the expression during transformation. Defaults to True.
 
     Returns:
         The transformed expression.
     """
-    sources = {normalize_table_name(k, dialect=dialect): v for k, v in sources.items()}
+    normalized_sources = {normalize_table_name(k, dialect=dialect): v for k, v in sources.items()}
 
     def _expand(node: Expression):
         if isinstance(node, Table):
             name = normalize_table_name(node, dialect=dialect)
-            source = sources.get(name)
+            source = normalized_sources.get(name)
+
             if source:
-                subquery = source.subquery(node.alias or name)
+                # Create a subquery with the same alias (or table name if no alias)
+                parsed_source = source() if callable(source) else source
+                subquery = parsed_source.subquery(node.alias or name)
                 subquery.comments = [f"source: {name}"]
+
+                # Continue expanding within the subquery
                 return subquery.transform(_expand, copy=False)
+
         return node
 
     return expression.transform(_expand, copy=copy)

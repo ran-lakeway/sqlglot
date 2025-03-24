@@ -3,6 +3,7 @@ from sqlglot import exp, parse_one
 from sqlglot.dialects import ClickHouse
 from sqlglot.expressions import convert
 from sqlglot.optimizer import traverse_scope
+from sqlglot.optimizer.qualify_columns import quote_identifiers
 from tests.dialects.test_dialect import Validator
 from sqlglot.errors import ErrorLevel
 
@@ -11,6 +12,9 @@ class TestClickhouse(Validator):
     dialect = "clickhouse"
 
     def test_clickhouse(self):
+        expr = quote_identifiers(self.parse_one("{start_date:String}"), dialect="clickhouse")
+        self.assertEqual(expr.sql("clickhouse"), "{start_date: String}")
+
         for string_type_enum in ClickHouse.Generator.STRING_TYPE_MAPPING:
             self.validate_identity(f"CAST(x AS {string_type_enum.value})", "CAST(x AS String)")
 
@@ -29,6 +33,10 @@ class TestClickhouse(Validator):
         self.assertEqual(expr.sql(dialect="clickhouse"), "COUNT(x)")
         self.assertIsNone(expr._meta)
 
+        self.validate_identity("SELECT 1 OR (1 = 2)")
+        self.validate_identity("SELECT 1 AND (1 = 2)")
+        self.validate_identity("SELECT json.a.:Int64")
+        self.validate_identity("SELECT json.a.:JSON.b.:Int64")
         self.validate_identity("WITH arrayJoin([(1, [2, 3])]) AS arr SELECT arr")
         self.validate_identity("CAST(1 AS Bool)")
         self.validate_identity("SELECT toString(CHAR(104.1, 101, 108.9, 108.9, 111, 32))")
@@ -85,6 +93,7 @@ class TestClickhouse(Validator):
         self.validate_identity("SELECT exponentialTimeDecayedAvg(60)(a, b)")
         self.validate_identity("levenshteinDistance(col1, col2)", "editDistance(col1, col2)")
         self.validate_identity("SELECT * FROM foo WHERE x GLOBAL IN (SELECT * FROM bar)")
+        self.validate_identity("SELECT * FROM foo WHERE x GLOBAL NOT IN (SELECT * FROM bar)")
         self.validate_identity("POSITION(haystack, needle)")
         self.validate_identity("POSITION(haystack, needle, position)")
         self.validate_identity("CAST(x AS DATETIME)", "CAST(x AS DateTime)")
@@ -160,6 +169,14 @@ class TestClickhouse(Validator):
         )
         self.validate_identity(
             "SELECT generate_series FROM generate_series(0, 10) AS g(x)",
+        )
+        self.validate_identity(
+            "SELECT and(1, 2)",
+            "SELECT 1 AND 2",
+        )
+        self.validate_identity(
+            "SELECT or(1, 2)",
+            "SELECT 1 OR 2",
         )
         self.validate_identity(
             "SELECT generate_series FROM generate_series(0, 10) AS g",
@@ -1103,13 +1120,15 @@ LIFETIME(MIN 0 MAX 0)""",
             CREATE TABLE t (
                 a AggregateFunction(quantiles(0.5, 0.9), UInt64),
                 b AggregateFunction(quantiles, UInt64),
-                c SimpleAggregateFunction(sum, Float64)
+                c SimpleAggregateFunction(sum, Float64),
+                d AggregateFunction(count)
             )""",
             write={
                 "clickhouse": """CREATE TABLE t (
   a AggregateFunction(quantiles(0.5, 0.9), UInt64),
   b AggregateFunction(quantiles, UInt64),
-  c SimpleAggregateFunction(sum, Float64)
+  c SimpleAggregateFunction(sum, Float64),
+  d AggregateFunction(count)
 )"""
             },
             pretty=True,

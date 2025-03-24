@@ -633,6 +633,15 @@ class TSQL(Dialect):
             else self.expression(exp.ScopeResolution, this=this, expression=to),
         }
 
+        def _parse_wrapped_select(self, table: bool = False) -> t.Optional[exp.Expression]:
+            if self._match(TokenType.MERGE):
+                comments = self._prev_comments
+                merge = self._parse_merge()
+                merge.add_comments(comments, prepend=True)
+                return merge
+
+            return super()._parse_wrapped_select(table=table)
+
         def _parse_dcolon(self) -> t.Optional[exp.Expression]:
             # We want to use _parse_types() if the first token after :: is a known type,
             # otherwise we could parse something like x::varchar(max) into a function
@@ -769,6 +778,18 @@ class TSQL(Dialect):
                 expressions = None
 
             return self.expression(exp.UserDefinedFunction, this=this, expressions=expressions)
+
+        def _parse_into(self) -> t.Optional[exp.Into]:
+            into = super()._parse_into()
+
+            table = isinstance(into, exp.Into) and into.find(exp.Table)
+            if isinstance(table, exp.Table):
+                table_identifier = table.this
+                if table_identifier.args.get("temporary"):
+                    # Promote the temporary property from the Identifier to the Into expression
+                    t.cast(exp.Into, into).set("temporary", True)
+
+            return into
 
         def _parse_id_var(
             self,
@@ -1150,8 +1171,11 @@ class TSQL(Dialect):
                 if isinstance(ctas_expression, exp.UNWRAPPED_QUERIES):
                     ctas_expression = ctas_expression.subquery()
 
+                properties = expression.args.get("properties") or exp.Properties()
+                is_temp = any(isinstance(p, exp.TemporaryProperty) for p in properties.expressions)
+
                 select_into = exp.select("*").from_(exp.alias_(ctas_expression, "temp", table=True))
-                select_into.set("into", exp.Into(this=table))
+                select_into.set("into", exp.Into(this=table, temporary=is_temp))
 
                 if like_property:
                     select_into.limit(0, copy=False)
@@ -1179,6 +1203,16 @@ class TSQL(Dialect):
                 sql = sql.replace("CREATE OR REPLACE ", "CREATE OR ALTER ", 1)
 
             return self.prepend_ctes(expression, sql)
+
+        @generator.unsupported_args("unlogged", "expressions")
+        def into_sql(self, expression: exp.Into) -> str:
+            if expression.args.get("temporary"):
+                # If the Into expression has a temporary property, push this down to the Identifier
+                table = expression.find(exp.Table)
+                if table and isinstance(table.this, exp.Identifier):
+                    table.this.set("temporary", True)
+
+            return f"{self.seg('INTO')} {self.sql(expression, 'this')}"
 
         def count_sql(self, expression: exp.Count) -> str:
             func_name = "COUNT_BIG" if expression.args.get("big_int") else "COUNT"

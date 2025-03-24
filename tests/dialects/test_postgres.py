@@ -345,6 +345,28 @@ class TestPostgres(Validator):
             "CAST(x AS INT8)",
             "CAST(x AS BIGINT)",
         )
+        self.validate_identity(
+            """
+            WITH
+              json_data AS (SELECT '{"field_id": [1, 2, 3]}'::JSON AS data),
+              field_ids AS (SELECT 'field_id' AS field_id)
+
+            SELECT
+                JSON_ARRAY_ELEMENTS(json_data.data -> field_ids.field_id) AS element
+            FROM json_data, field_ids
+            """,
+            """WITH json_data AS (
+  SELECT
+    CAST('{"field_id": [1, 2, 3]}' AS JSON) AS data
+), field_ids AS (
+  SELECT
+    'field_id' AS field_id
+)
+SELECT
+  JSON_ARRAY_ELEMENTS(JSON_EXTRACT_PATH(json_data.data, field_ids.field_id)) AS element
+FROM json_data, field_ids""",
+            pretty=True,
+        )
 
         self.validate_all(
             "SELECT ARRAY[]::INT[] AS foo",
@@ -1368,3 +1390,25 @@ CROSS JOIN JSON_ARRAY_ELEMENTS(CAST(JSON_EXTRACT_PATH(tbox, 'boxes') AS JSON)) A
         self.validate_identity(
             "WITH RECURSIVE search_graph(id, link, data, depth) AS (SELECT g.id, g.link, g.data, 1 FROM graph AS g UNION ALL SELECT g.id, g.link, g.data, sg.depth + 1 FROM graph AS g, search_graph AS sg WHERE g.id = sg.link) CYCLE id SET is_cycle USING path SELECT * FROM search_graph"
         )
+
+    def test_json_extract(self):
+        for arrow_op in ("->", "->>"):
+            with self.subTest(f"Ensure {arrow_op} operator roundtrips int values as subscripts"):
+                self.validate_all(
+                    f"SELECT foo {arrow_op} 1",
+                    write={
+                        "postgres": f"SELECT foo {arrow_op} 1",
+                        "duckdb": f"SELECT foo {arrow_op} '$[1]'",
+                    },
+                )
+
+            with self.subTest(
+                f"Ensure {arrow_op} operator roundtrips string values that represent integers as keys"
+            ):
+                self.validate_all(
+                    f"SELECT foo {arrow_op} '12'",
+                    write={
+                        "postgres": f"SELECT foo {arrow_op} '12'",
+                        "clickhouse": "SELECT JSONExtractString(foo, '12')",
+                    },
+                )

@@ -1,6 +1,6 @@
-import sys
 import datetime
 import math
+import sys
 import unittest
 
 from sqlglot import ParseError, alias, exp, parse_one
@@ -8,6 +8,19 @@ from sqlglot import ParseError, alias, exp, parse_one
 
 class TestExpressions(unittest.TestCase):
     maxDiff = None
+
+    def test_to_s(self):
+        self.assertEqual(repr(parse_one("5")), "Literal(this=5, is_string=False)")
+        self.assertEqual(repr(parse_one("5.3")), "Literal(this=5.3, is_string=False)")
+        self.assertEqual(repr(parse_one("True")), "Boolean(this=True)")
+        self.assertEqual(repr(parse_one("'  x'")), "Literal(this='  x', is_string=True)")
+        self.assertEqual(repr(parse_one("' \n  x'")), "Literal(this=' \\n  x', is_string=True)")
+        self.assertEqual(
+            repr(parse_one("   x ")), "Column(\n  this=Identifier(this=x, quoted=False))"
+        )
+        self.assertEqual(
+            repr(parse_one('"   x "')), "Column(\n  this=Identifier(this='   x ', quoted=True))"
+        )
 
     def test_arg_key(self):
         self.assertEqual(parse_one("sum(1)").find(exp.Literal).arg_key, "this")
@@ -272,6 +285,16 @@ class TestExpressions(unittest.TestCase):
                 {
                     "`a-b`.`c`": parse_one("select 1"),
                 },
+                dialect="spark",
+            ).sql(),
+            "SELECT * FROM (SELECT 1) AS a /* source: a-b.c */",
+        )
+
+    def test_expand_with_lazy_source_provider(self):
+        self.assertEqual(
+            exp.expand(
+                parse_one('select * from "a-b"."C" AS a'),
+                {"`a-b`.c": lambda: parse_one("select 1", dialect="spark")},
                 dialect="spark",
             ).sql(),
             "SELECT * FROM (SELECT 1) AS a /* source: a-b.c */",
@@ -838,6 +861,7 @@ class TestExpressions(unittest.TestCase):
 
     def test_convert(self):
         from collections import namedtuple
+
         import pytz
 
         PointTuple = namedtuple("Point", ["x", "y"])

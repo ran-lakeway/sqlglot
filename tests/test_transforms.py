@@ -1,6 +1,6 @@
 import unittest
 
-from sqlglot import parse_one
+from sqlglot import parse_one, expressions as exp
 from sqlglot.transforms import (
     eliminate_distinct_on,
     eliminate_join_marks,
@@ -255,4 +255,13 @@ class TestTransforms(unittest.TestCase):
                 "SELECT table1.id, table2.cloumn1, table3.id FROM table1, table2, (SELECT tableInner1.id FROM tableInner1, tableInner2 WHERE tableInner1.id = tableInner2.id(+)) AS table3 WHERE table1.id = table2.id(+) and table1.id = table3.id(+)",
                 f"SELECT table1.id, table2.cloumn1, table3.id FROM table1 LEFT JOIN table2 ON table1.id = table2.id LEFT JOIN (SELECT tableInner1.id FROM tableInner1 LEFT JOIN tableInner2 ON tableInner1.id = tableInner2.id) {alias}table3 ON table1.id = table3.id",
                 dialect,
+            )
+
+            # if multiple conditions, we check that after transformations the tree remains consistent
+            s = "select a.id from a, b where a.id = b.id (+) AND b.d (+) = const"
+            tree = eliminate_join_marks(parse_one(s, dialect=dialect))
+            assert all(type(t.parent_select) is exp.Select for t in tree.find_all(exp.Table))
+            assert (
+                tree.sql(dialect=dialect)
+                == "SELECT a.id FROM a LEFT JOIN b ON a.id = b.id AND b.d = const"
             )

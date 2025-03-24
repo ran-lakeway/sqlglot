@@ -84,6 +84,12 @@ class TestMySQL(Validator):
             "CREATE OR REPLACE VIEW my_view AS SELECT column1 AS `boo`, column2 AS `foo` FROM my_table WHERE column3 = 'some_value' UNION SELECT q.* FROM fruits_table, JSON_TABLE(Fruits, '$[*]' COLUMNS(id VARCHAR(255) PATH '$.$id', value VARCHAR(255) PATH '$.value')) AS q",
         )
         self.validate_identity(
+            "CREATE TABLE test_table (id INT AUTO_INCREMENT, PRIMARY KEY (id) USING BTREE)"
+        )
+        self.validate_identity(
+            "CREATE TABLE test_table (id INT AUTO_INCREMENT, PRIMARY KEY (id) USING HASH)"
+        )
+        self.validate_identity(
             "/*left*/ EXPLAIN SELECT /*hint*/ col FROM t1 /*right*/",
             "/* left */ DESCRIBE /* hint */ SELECT col FROM t1 /* right */",
         )
@@ -150,6 +156,10 @@ class TestMySQL(Validator):
                 "sqlite": "CREATE TABLE x (id INTEGER NOT NULL AUTOINCREMENT PRIMARY KEY)",
             },
         )
+        self.validate_identity("ALTER TABLE t ALTER INDEX i INVISIBLE")
+        self.validate_identity("ALTER TABLE t ALTER INDEX i VISIBLE")
+        self.validate_identity("ALTER TABLE t ALTER COLUMN c SET INVISIBLE")
+        self.validate_identity("ALTER TABLE t ALTER COLUMN c SET VISIBLE")
 
     def test_identity(self):
         self.validate_identity("SELECT HIGH_PRIORITY STRAIGHT_JOIN SQL_CALC_FOUND_ROWS * FROM t")
@@ -334,6 +344,22 @@ class TestMySQL(Validator):
                 "presto": "CHR(10)",
                 "sqlite": "CHAR(10)",
                 "tsql": "CHAR(10)",
+            },
+        )
+        self.validate_identity("CREATE TABLE t (foo VARBINARY(5))")
+        self.validate_all(
+            "CREATE TABLE t (foo BLOB)",
+            write={
+                "mysql": "CREATE TABLE t (foo BLOB)",
+                "oracle": "CREATE TABLE t (foo BLOB)",
+                "postgres": "CREATE TABLE t (foo BYTEA)",
+                "tsql": "CREATE TABLE t (foo VARBINARY)",
+                "sqlite": "CREATE TABLE t (foo BLOB)",
+                "duckdb": "CREATE TABLE t (foo VARBINARY)",
+                "hive": "CREATE TABLE t (foo BINARY)",
+                "bigquery": "CREATE TABLE t (foo BYTES)",
+                "redshift": "CREATE TABLE t (foo VARBYTE)",
+                "clickhouse": "CREATE TABLE t (foo Nullable(String))",
             },
         )
 

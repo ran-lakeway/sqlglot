@@ -36,6 +36,7 @@ from sqlglot.dialects.dialect import (
     build_regexp_extract,
     explode_to_unnest_sql,
     no_make_interval_sql,
+    groupconcat_sql,
 )
 from sqlglot.generator import unsupported_args
 from sqlglot.helper import seq_get
@@ -379,6 +380,7 @@ class DuckDB(Dialect):
             "DECODE": lambda args: exp.Decode(
                 this=seq_get(args, 0), charset=exp.Literal.string("utf-8")
             ),
+            "EDITDIST3": exp.Levenshtein.from_arg_list,
             "ENCODE": lambda args: exp.Encode(
                 this=seq_get(args, 0), charset=exp.Literal.string("utf-8")
             ),
@@ -386,6 +388,7 @@ class DuckDB(Dialect):
             "EPOCH_MS": lambda args: exp.UnixToTime(
                 this=seq_get(args, 0), scale=exp.UnixToTime.MILLIS
             ),
+            "GENERATE_SERIES": _build_generate_series(),
             "JSON": exp.ParseJSON.from_arg_list,
             "JSON_EXTRACT_PATH": parser.build_extract_json_with_path(exp.JSONExtract),
             "JSON_EXTRACT_STRING": parser.build_extract_json_with_path(exp.JSONExtractScalar),
@@ -397,6 +400,7 @@ class DuckDB(Dialect):
             "MAKE_TIMESTAMP": _build_make_timestamp,
             "QUANTILE_CONT": exp.PercentileCont.from_arg_list,
             "QUANTILE_DISC": exp.PercentileDisc.from_arg_list,
+            "RANGE": _build_generate_series(end_exclusive=True),
             "REGEXP_EXTRACT": build_regexp_extract(exp.RegexpExtract),
             "REGEXP_EXTRACT_ALL": build_regexp_extract(exp.RegexpExtractAll),
             "REGEXP_MATCHES": exp.RegexpLike.from_arg_list,
@@ -406,6 +410,7 @@ class DuckDB(Dialect):
                 replacement=seq_get(args, 2),
                 modifiers=seq_get(args, 3),
             ),
+            "SHA256": lambda args: exp.SHA2(this=seq_get(args, 0), length=exp.Literal.number(256)),
             "STRFTIME": build_formatted_time(exp.TimeToStr, "duckdb"),
             "STRING_SPLIT": exp.Split.from_arg_list,
             "STRING_SPLIT_REGEX": exp.RegexpSplit.from_arg_list,
@@ -418,15 +423,17 @@ class DuckDB(Dialect):
             "TO_TIMESTAMP": exp.UnixToTime.from_arg_list,
             "UNNEST": exp.Explode.from_arg_list,
             "XOR": binary_from_function(exp.BitwiseXor),
-            "GENERATE_SERIES": _build_generate_series(),
-            "RANGE": _build_generate_series(end_exclusive=True),
-            "EDITDIST3": exp.Levenshtein.from_arg_list,
         }
 
         FUNCTIONS.pop("DATE_SUB")
         FUNCTIONS.pop("GLOB")
 
-        FUNCTION_PARSERS = parser.Parser.FUNCTION_PARSERS.copy()
+        FUNCTION_PARSERS = {
+            **parser.Parser.FUNCTION_PARSERS,
+            **dict.fromkeys(
+                ("GROUP_CONCAT", "LISTAGG", "STRINGAGG"), lambda self: self._parse_string_agg()
+            ),
+        }
         FUNCTION_PARSERS.pop("DECODE")
 
         NO_PAREN_FUNCTION_PARSERS = {
@@ -460,6 +467,58 @@ class DuckDB(Dialect):
             TokenType.ATTACH: lambda self: self._parse_attach_detach(),
             TokenType.DETACH: lambda self: self._parse_attach_detach(is_attach=False),
         }
+
+        def _parse_expression(self) -> t.Optional[exp.Expression]:
+            # DuckDB supports prefix aliases, e.g. foo: 1
+            if self._next and self._next.token_type == TokenType.COLON:
+                alias = self._parse_id_var(tokens=self.ALIAS_TOKENS)
+                self._match(TokenType.COLON)
+                comments = self._prev_comments or []
+
+                this = self._parse_assignment()
+                if isinstance(this, exp.Expression):
+                    # Moves the comment next to the alias in `alias: expr /* comment */`
+                    comments += this.pop_comments() or []
+
+                return self.expression(exp.Alias, comments=comments, this=this, alias=alias)
+
+            return super()._parse_expression()
+
+        def _parse_table(
+            self,
+            schema: bool = False,
+            joins: bool = False,
+            alias_tokens: t.Optional[t.Collection[TokenType]] = None,
+            parse_bracket: bool = False,
+            is_db_reference: bool = False,
+            parse_partition: bool = False,
+        ) -> t.Optional[exp.Expression]:
+            # DuckDB supports prefix aliases, e.g. FROM foo: bar
+            if self._next and self._next.token_type == TokenType.COLON:
+                alias = self._parse_table_alias(
+                    alias_tokens=alias_tokens or self.TABLE_ALIAS_TOKENS
+                )
+                self._match(TokenType.COLON)
+                comments = self._prev_comments or []
+            else:
+                alias = None
+                comments = []
+
+            table = super()._parse_table(
+                schema=schema,
+                joins=joins,
+                alias_tokens=alias_tokens,
+                parse_bracket=parse_bracket,
+                is_db_reference=is_db_reference,
+                parse_partition=parse_partition,
+            )
+            if isinstance(table, exp.Expression) and isinstance(alias, exp.TableAlias):
+                # Moves the comment next to the alias in `alias: table /* comment */`
+                comments += table.pop_comments() or []
+                alias.comments = alias.pop_comments() + comments
+                table.set("alias", alias)
+
+            return table
 
         def _parse_table_sample(self, as_modifier: bool = False) -> t.Optional[exp.TableSample]:
             # https://duckdb.org/docs/sql/samples.html
@@ -582,6 +641,7 @@ class DuckDB(Dialect):
             exp.Encode: lambda self, e: encode_decode_sql(self, e, "ENCODE", replace=False),
             exp.GenerateDateArray: _generate_datetime_array_sql,
             exp.GenerateTimestampArray: _generate_datetime_array_sql,
+            exp.GroupConcat: lambda self, e: groupconcat_sql(self, e, within_group=False),
             exp.HexString: lambda self, e: self.hexstring_sql(e, binary_function_repr="FROM_HEX"),
             exp.Explode: rename_func("UNNEST"),
             exp.IntDiv: lambda self, e: self.binary(e, "//"),
@@ -1057,3 +1117,7 @@ class DuckDB(Dialect):
 
             self.unsupported("Only integer formats are supported by NumberToStr")
             return self.function_fallback_sql(expression)
+
+        def autoincrementcolumnconstraint_sql(self, _) -> str:
+            self.unsupported("The AUTOINCREMENT column constraint is not supported by DuckDB")
+            return ""

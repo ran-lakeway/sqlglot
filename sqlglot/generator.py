@@ -191,8 +191,8 @@ class Generator(metaclass=_Generator):
         exp.StreamingTableProperty: lambda *_: "STREAMING",
         exp.StrictProperty: lambda *_: "STRICT",
         exp.SwapTable: lambda self, e: f"SWAP WITH {self.sql(e, 'this')}",
-        exp.TemporaryProperty: lambda *_: "TEMPORARY",
         exp.Tags: lambda self, e: f"TAG ({self.expressions(e, flat=True)})",
+        exp.TemporaryProperty: lambda *_: "TEMPORARY",
         exp.TitleColumnConstraint: lambda self, e: f"TITLE {self.sql(e, 'this')}",
         exp.ToMap: lambda self, e: f"MAP {self.sql(e, 'this')}",
         exp.ToTableProperty: lambda self, e: f"TO {self.sql(e.this)}",
@@ -200,6 +200,7 @@ class Generator(metaclass=_Generator):
         exp.TransientProperty: lambda *_: "TRANSIENT",
         exp.Union: lambda self, e: self.set_operations(e),
         exp.UnloggedProperty: lambda *_: "UNLOGGED",
+        exp.UsingTemplateProperty: lambda self, e: f"USING TEMPLATE {self.sql(e, 'this')}",
         exp.UsingData: lambda self, e: f"USING DATA {self.sql(e, 'this')}",
         exp.Uuid: lambda *_: "UUID()",
         exp.UppercaseColumnConstraint: lambda *_: "UPPERCASE",
@@ -210,6 +211,7 @@ class Generator(metaclass=_Generator):
         exp.WithProcedureOptions: lambda self, e: f"WITH {self.expressions(e, flat=True)}",
         exp.WithSchemaBindingProperty: lambda self, e: f"WITH SCHEMA {self.sql(e, 'this')}",
         exp.WithOperator: lambda self, e: f"{self.sql(e, 'this')} WITH {self.sql(e, 'op')}",
+        exp.ForceProperty: lambda *_: "FORCE",
     }
 
     # Whether null ordering is supported in order by
@@ -467,6 +469,7 @@ class Generator(metaclass=_Generator):
         exp.DataType.Type.MEDIUMTEXT: "TEXT",
         exp.DataType.Type.LONGTEXT: "TEXT",
         exp.DataType.Type.TINYTEXT: "TEXT",
+        exp.DataType.Type.BLOB: "VARBINARY",
         exp.DataType.Type.MEDIUMBLOB: "BLOB",
         exp.DataType.Type.LONGBLOB: "BLOB",
         exp.DataType.Type.TINYBLOB: "BLOB",
@@ -584,6 +587,7 @@ class Generator(metaclass=_Generator):
         exp.SqlReadWriteProperty: exp.Properties.Location.POST_SCHEMA,
         exp.SqlSecurityProperty: exp.Properties.Location.POST_CREATE,
         exp.StabilityProperty: exp.Properties.Location.POST_SCHEMA,
+        exp.StorageHandlerProperty: exp.Properties.Location.POST_SCHEMA,
         exp.StreamingTableProperty: exp.Properties.Location.POST_CREATE,
         exp.StrictProperty: exp.Properties.Location.POST_SCHEMA,
         exp.Tags: exp.Properties.Location.POST_WITH,
@@ -593,6 +597,7 @@ class Generator(metaclass=_Generator):
         exp.TransformModelProperty: exp.Properties.Location.POST_SCHEMA,
         exp.MergeTreeTTL: exp.Properties.Location.POST_SCHEMA,
         exp.UnloggedProperty: exp.Properties.Location.POST_CREATE,
+        exp.UsingTemplateProperty: exp.Properties.Location.POST_SCHEMA,
         exp.ViewAttributeProperty: exp.Properties.Location.POST_SCHEMA,
         exp.VolatileProperty: exp.Properties.Location.POST_CREATE,
         exp.WithDataProperty: exp.Properties.Location.POST_EXPRESSION,
@@ -600,6 +605,7 @@ class Generator(metaclass=_Generator):
         exp.WithProcedureOptions: exp.Properties.Location.POST_SCHEMA,
         exp.WithSchemaBindingProperty: exp.Properties.Location.POST_SCHEMA,
         exp.WithSystemVersioningProperty: exp.Properties.Location.POST_SCHEMA,
+        exp.ForceProperty: exp.Properties.Location.POST_CREATE,
     }
 
     # Keywords that can't be used as unquoted identifier names
@@ -1488,10 +1494,17 @@ class Generator(metaclass=_Generator):
         direction = f" {direction}" if direction else ""
         count = self.sql(expression, "count")
         count = f" {count}" if count else ""
-        if expression.args.get("percent"):
-            count = f"{count} PERCENT"
-        with_ties_or_only = "WITH TIES" if expression.args.get("with_ties") else "ONLY"
-        return f"{self.seg('FETCH')}{direction}{count} ROWS {with_ties_or_only}"
+        limit_options = self.sql(expression, "limit_options")
+        limit_options = f"{limit_options}" if limit_options else " ROWS ONLY"
+        return f"{self.seg('FETCH')}{direction}{count}{limit_options}"
+
+    def limitoptions_sql(self, expression: exp.LimitOptions) -> str:
+        percent = " PERCENT" if expression.args.get("percent") else ""
+        rows = " ROWS" if expression.args.get("rows") else ""
+        with_ties = " WITH TIES" if expression.args.get("with_ties") else ""
+        if not with_ties and rows:
+            with_ties = " ONLY"
+        return f"{percent}{rows}{with_ties}"
 
     def filter_sql(self, expression: exp.Filter) -> str:
         if self.AGGREGATE_FILTER_SUPPORTED:
@@ -1988,6 +2001,17 @@ class Generator(metaclass=_Generator):
 
         return f"{only}{table}{changes}{partition}{version}{file_format}{sample_pre_alias}{alias}{hints}{pivots}{sample_post_alias}{joins}{laterals}{ordinality}"
 
+    def tablefromrows_sql(self, expression: exp.TableFromRows) -> str:
+        table = self.func("TABLE", expression.this)
+        alias = self.sql(expression, "alias")
+        alias = f" AS {alias}" if alias else ""
+        sample = self.sql(expression, "sample")
+        pivots = self.expressions(expression, key="pivots", sep="", flat=True)
+        joins = self.indent(
+            self.expressions(expression, key="joins", sep="", flat=True), skip_first=True
+        )
+        return f"{table}{alias}{pivots}{sample}{joins}"
+
     def tablesample_sql(
         self,
         expression: exp.TableSample,
@@ -2282,9 +2306,10 @@ class Generator(metaclass=_Generator):
         args_sql = ", ".join(self.sql(e) for e in args)
         args_sql = f"({args_sql})" if top and any(not e.is_number for e in args) else args_sql
         expressions = self.expressions(expression, flat=True)
+        limit_options = self.sql(expression, "limit_options")
         expressions = f" BY {expressions}" if expressions else ""
 
-        return f"{this}{self.seg('TOP' if top else 'LIMIT')} {args_sql}{expressions}"
+        return f"{this}{self.seg('TOP' if top else 'LIMIT')} {args_sql}{limit_options}{expressions}"
 
     def offset_sql(self, expression: exp.Offset) -> str:
         this = self.sql(expression, "this")
@@ -3097,13 +3122,17 @@ class Generator(metaclass=_Generator):
     def pivotalias_sql(self, expression: exp.PivotAlias) -> str:
         alias = expression.args["alias"]
 
-        identifier_alias = isinstance(alias, exp.Identifier)
-        literal_alias = isinstance(alias, exp.Literal)
+        parent = expression.parent
+        pivot = parent and parent.parent
 
-        if identifier_alias and not self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
-            alias.replace(exp.Literal.string(alias.output_name))
-        elif not identifier_alias and literal_alias and self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
-            alias.replace(exp.to_identifier(alias.output_name))
+        if isinstance(pivot, exp.Pivot) and pivot.unpivot:
+            identifier_alias = isinstance(alias, exp.Identifier)
+            literal_alias = isinstance(alias, exp.Literal)
+
+            if identifier_alias and not self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
+                alias.replace(exp.Literal.string(alias.output_name))
+            elif not identifier_alias and literal_alias and self.UNPIVOT_ALIASES_ARE_IDENTIFIERS:
+                alias.replace(exp.to_identifier(alias.output_name))
 
         return self.alias_sql(expression)
 
@@ -3284,6 +3313,10 @@ class Generator(metaclass=_Generator):
         if comment:
             return f"ALTER COLUMN {this} COMMENT {comment}"
 
+        visible = expression.args.get("visible")
+        if visible:
+            return f"ALTER COLUMN {this} SET {visible}"
+
         allow_null = expression.args.get("allow_null")
         drop = expression.args.get("drop")
 
@@ -3295,6 +3328,14 @@ class Generator(metaclass=_Generator):
             return f"ALTER COLUMN {this} {keyword} NOT NULL"
 
         return f"ALTER COLUMN {this} DROP DEFAULT"
+
+    def alterindex_sql(self, expression: exp.AlterIndex) -> str:
+        this = self.sql(expression, "this")
+
+        visible = expression.args.get("visible")
+        visible_sql = "VISIBLE" if visible else "INVISIBLE"
+
+        return f"ALTER INDEX {this} {visible_sql}"
 
     def alterdiststyle_sql(self, expression: exp.AlterDistStyle) -> str:
         this = self.sql(expression, "this")
@@ -3517,6 +3558,9 @@ class Generator(metaclass=_Generator):
 
     def trycast_sql(self, expression: exp.TryCast) -> str:
         return self.cast_sql(expression, safe_prefix="TRY_")
+
+    def jsoncast_sql(self, expression: exp.JSONCast) -> str:
+        return self.cast_sql(expression)
 
     def try_sql(self, expression: exp.Try) -> str:
         if not self.TRY_SUPPORTED:
@@ -4269,7 +4313,7 @@ class Generator(metaclass=_Generator):
         return f"COPY{this}{kind} {files}{credentials}{params}"
 
     def semicolon_sql(self, expression: exp.Semicolon) -> str:
-        return ";"
+        return ""
 
     def datadeletionproperty_sql(self, expression: exp.DataDeletionProperty) -> str:
         on_sql = "ON" if expression.args.get("on") else "OFF"
@@ -4819,3 +4863,14 @@ class Generator(metaclass=_Generator):
 
     def combinedparameterizedagg_sql(self, expression: exp.CombinedParameterizedAgg) -> str:
         return self.parameterizedagg_sql(expression)
+
+    def show_sql(self, expression: exp.Show) -> str:
+        self.unsupported("Unsupported SHOW statement")
+        return ""
+
+    def put_sql(self, expression: exp.Put) -> str:
+        props = expression.args.get("properties")
+        props_sql = self.properties(props, prefix=" ", sep=" ", wrapped=False) if props else ""
+        this = self.sql(expression, "this")
+        target = self.sql(expression, "target")
+        return f"PUT {this} {target}{props_sql}"

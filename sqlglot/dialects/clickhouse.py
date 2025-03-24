@@ -218,6 +218,7 @@ class ClickHouse(Dialect):
 
         KEYWORDS = {
             **tokens.Tokenizer.KEYWORDS,
+            ".:": TokenType.DOTCOLON,
             "ATTACH": TokenType.COMMAND,
             "DATE32": TokenType.DATE32,
             "DATETIME64": TokenType.DATETIME64,
@@ -439,6 +440,8 @@ class ClickHouse(Dialect):
 
         FUNC_TOKENS = {
             *parser.Parser.FUNC_TOKENS,
+            TokenType.AND,
+            TokenType.OR,
             TokenType.SET,
         }
 
@@ -478,8 +481,7 @@ class ClickHouse(Dialect):
 
         RANGE_PARSERS = {
             **parser.Parser.RANGE_PARSERS,
-            TokenType.GLOBAL: lambda self, this: self._match(TokenType.IN)
-            and self._parse_in(this, is_global=True),
+            TokenType.GLOBAL: lambda self, this: self._parse_global_in(this),
         }
 
         # The PLACEHOLDER entry is popped because 1) it doesn't affect Clickhouse (it corresponds to
@@ -607,6 +609,9 @@ class ClickHouse(Dialect):
             elif not self._match(TokenType.R_BRACE):
                 self.raise_error("Expecting }")
 
+            if isinstance(this, exp.Identifier) and not this.quoted:
+                this = exp.var(this.name)
+
             return self.expression(exp.Placeholder, this=this, kind=kind)
 
         def _parse_bracket(
@@ -632,6 +637,11 @@ class ClickHouse(Dialect):
             this = super()._parse_in(this)
             this.set("is_global", is_global)
             return this
+
+        def _parse_global_in(self, this: t.Optional[exp.Expression]) -> exp.Not | exp.In:
+            is_negated = self._match(TokenType.NOT)
+            this = self._match(TokenType.IN) and self._parse_in(this, is_global=True)
+            return self.expression(exp.Not, this=this) if is_negated else this
 
         def _parse_table(
             self,
@@ -913,6 +923,7 @@ class ClickHouse(Dialect):
         ARRAY_SIZE_NAME = "LENGTH"
 
         STRING_TYPE_MAPPING = {
+            exp.DataType.Type.BLOB: "String",
             exp.DataType.Type.CHAR: "String",
             exp.DataType.Type.LONGBLOB: "String",
             exp.DataType.Type.LONGTEXT: "String",
@@ -1008,6 +1019,7 @@ class ClickHouse(Dialect):
             exp.Explode: rename_func("arrayJoin"),
             exp.Final: lambda self, e: f"{self.sql(e, 'this')} FINAL",
             exp.IsNan: rename_func("isNaN"),
+            exp.JSONCast: lambda self, e: f"{self.sql(e, 'this')}.:{self.sql(e, 'to')}",
             exp.JSONExtract: json_extract_segments("JSONExtractString", quoted_index=False),
             exp.JSONExtractScalar: json_extract_segments("JSONExtractString", quoted_index=False),
             exp.JSONPathKey: json_path_key_only_name,
@@ -1288,3 +1300,18 @@ class ClickHouse(Dialect):
                 is_sql = self.wrap(is_sql)
 
             return is_sql
+
+        def in_sql(self, expression: exp.In) -> str:
+            in_sql = super().in_sql(expression)
+
+            if isinstance(expression.parent, exp.Not) and expression.args.get("is_global"):
+                in_sql = in_sql.replace("GLOBAL IN", "GLOBAL NOT IN", 1)
+
+            return in_sql
+
+        def not_sql(self, expression: exp.Not) -> str:
+            if isinstance(expression.this, exp.In) and expression.this.args.get("is_global"):
+                # let `GLOBAL IN` child interpose `NOT`
+                return self.sql(expression, "this")
+
+            return super().not_sql(expression)
